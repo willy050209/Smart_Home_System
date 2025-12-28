@@ -1,10 +1,11 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Controls.Shapes; // For Ellipse
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
-using Microsoft.AspNetCore.SignalR.Client; 
+using Microsoft.AspNetCore.SignalR.Client;
 using OpenCvSharp;
 using System;
 using System.IO;
@@ -12,11 +13,11 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Tmds.DBus.Protocol;
+//using Tmds.DBus.Protocol; // 在 Android 可能不相容，先註解掉
 
-namespace SmartHomeClient
+namespace SmartHomeClient.Views
 {
-    public partial class MainWindow : Avalonia.Controls.Window
+    public partial class MainView : UserControl
     {
         private HttpClient? _httpClient;
         private HubConnection? _hubConnection;
@@ -27,7 +28,7 @@ namespace SmartHomeClient
 
         private Mat? _prevFrame;
 
-        public MainWindow()
+        public MainView()
         {
             InitializeComponent();
 
@@ -36,6 +37,15 @@ namespace SmartHomeClient
 
             _timerPoll = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _timerPoll.Tick += async (s, e) => await PollAuthStatus();
+
+            this.AttachedToVisualTree += (s, e) => this.Focus();
+			var ledOverlay = this.FindControl<LedControlWindow>("LedOverlay");
+            if (ledOverlay != null)
+            {
+                ledOverlay.RequestClose += (s, e) => {
+                    ledOverlay.IsVisible = false; // 隱藏面板
+                };
+            }
         }
 
         // --- 連線邏輯 ---
@@ -76,14 +86,21 @@ namespace SmartHomeClient
                 var dashGrid = this.FindControl<Grid>("DashboardGrid");
                 var txtUrlDisplay = this.FindControl<TextBlock>("TxtServerUrlDisplay");
 
-                connGrid?.IsVisible = false;
-                dashGrid?.IsVisible = true;
-                txtUrlDisplay?.Text = url;
+                if (connGrid != null) connGrid.IsVisible = false;
+                if (dashGrid != null) dashGrid.IsVisible = true;
+                if (txtUrlDisplay != null) txtUrlDisplay.Text = url;
             }
             catch (Exception ex)
-            {
-                Console.WriteLine($"Connection Error: {ex.Message}");
-            }
+			{
+				Console.WriteLine($"Connection Error: {ex.Message}");
+				
+				var txtUrlDisplay = this.FindControl<TextBlock>("TxtServerUrlDisplay");
+				if (txtUrlDisplay != null) 
+				{
+					txtUrlDisplay.Text = $"連線失敗: {ex.Message}";
+					txtUrlDisplay.Foreground = Brushes.Red;
+				}
+			}
         }
 
         private void OnDisconnectClick(object sender, RoutedEventArgs e)
@@ -96,8 +113,8 @@ namespace SmartHomeClient
             var connGrid = this.FindControl<Grid>("ConnectionGrid");
             var dashGrid = this.FindControl<Grid>("DashboardGrid");
 
-            connGrid?.IsVisible = true;
-            dashGrid?.IsVisible = false;
+            if (connGrid != null) connGrid.IsVisible = true;
+            if (dashGrid != null) dashGrid.IsVisible = false;
         }
 
         // --- 處理 ESP32 Sensor 數據 (SignalR) ---
@@ -115,17 +132,17 @@ namespace SmartHomeClient
 
                 if (sensorId == "esp32_01") // MQTT Node
                 {
-                    this.FindControl<TextBlock>("TxtMqttTemp")!.Text = temp.ToString("F1");
-                    this.FindControl<TextBlock>("TxtMqttHum")!.Text = hum.ToString("F1");
-                    this.FindControl<TextBlock>("TxtMqttPres")!.Text = pres.ToString("F0");
-                    this.FindControl<TextBlock>("TxtMqttTime")!.Text = "Last Update: " + time;
+                    var t = this.FindControl<TextBlock>("TxtMqttTemp"); if (t != null) t.Text = temp.ToString("F1");
+                    var h = this.FindControl<TextBlock>("TxtMqttHum"); if (h != null) h.Text = hum.ToString("F1");
+                    var p = this.FindControl<TextBlock>("TxtMqttPres"); if (p != null) p.Text = pres.ToString("F0");
+                    var tm = this.FindControl<TextBlock>("TxtMqttTime"); if (tm != null) tm.Text = "Last: " + time;
                 }
                 else if (sensorId == "esp32_bt_01") // Bluetooth Node
                 {
-                    this.FindControl<TextBlock>("TxtBtTemp")!.Text = temp.ToString("F1");
-                    this.FindControl<TextBlock>("TxtBtHum")!.Text = hum.ToString("F1");
-                    this.FindControl<TextBlock>("TxtBtPres")!.Text = pres.ToString("F0");
-                    this.FindControl<TextBlock>("TxtBtTime")!.Text = "Last Update: " + time;
+                    var t = this.FindControl<TextBlock>("TxtBtTemp"); if (t != null) t.Text = temp.ToString("F1");
+                    var h = this.FindControl<TextBlock>("TxtBtHum"); if (h != null) h.Text = hum.ToString("F1");
+                    var p = this.FindControl<TextBlock>("TxtBtPres"); if (p != null) p.Text = pres.ToString("F0");
+                    var tm = this.FindControl<TextBlock>("TxtBtTime"); if (tm != null) tm.Text = "Last: " + time;
                 }
             }
             catch (Exception ex)
@@ -149,8 +166,8 @@ namespace SmartHomeClient
                 var txtLight = this.FindControl<TextBlock>("TxtLightLevel");
                 var barLight = this.FindControl<ProgressBar>("BarLight");
 
-                txtLight?.Text = lightVal.ToString();
-                barLight?.Value = lightVal;
+                if (txtLight != null) txtLight.Text = lightVal.ToString();
+                if (barLight != null) barLight.Value = lightVal;
 
                 // 讀取 LED 狀態
                 var ledJson = await _httpClient.GetStringAsync("/api/hw/leds");
@@ -163,10 +180,17 @@ namespace SmartHomeClient
                 {
                     using var ms = new MemoryStream(imageBytes);
                     var bitmap = new Bitmap(ms);
-                    this.FindControl<Image>("CamDisplay")!.Source = bitmap;
+                    var img = this.FindControl<Image>("CamDisplay");
+                    if (img != null) img.Source = bitmap;
 
-                    var mat = Mat.FromImageData(imageBytes, ImreadModes.Color);
-                    DetectMotion(mat);
+                    // 注意：OpenCvSharp 在 Android 上可能需要特定的 setup
+                    // 若在 Android 上崩潰，請用 try-catch 包裹或拿掉這段
+                    try
+                    {
+                        var mat = Mat.FromImageData(imageBytes, ImreadModes.Color);
+                        DetectMotion(mat);
+                    }
+                    catch { }
                 }
             }
             catch { /* 忽略 */ }
@@ -176,15 +200,15 @@ namespace SmartHomeClient
         {
             if (states == null || states.Length < 4) return;
 
-            var l1 = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("Led1");
-            var l2 = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("Led2");
-            var l3 = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("Led3");
-            var l4 = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("Led4");
+            var l1 = this.FindControl<Ellipse>("Led1");
+            var l2 = this.FindControl<Ellipse>("Led2");
+            var l3 = this.FindControl<Ellipse>("Led3");
+            var l4 = this.FindControl<Ellipse>("Led4");
 
-            l1?.Fill = states[0] ? Brushes.Lime : Brushes.DimGray;
-            l2?.Fill = states[1] ? Brushes.Lime : Brushes.DimGray;
-            l3?.Fill = states[2] ? Brushes.Lime : Brushes.DimGray;
-            l4?.Fill = states[3] ? Brushes.Lime : Brushes.DimGray;
+            if (l1 != null) l1.Fill = states[0] ? Brushes.Lime : Brushes.DimGray;
+            if (l2 != null) l2.Fill = states[1] ? Brushes.Lime : Brushes.DimGray;
+            if (l3 != null) l3.Fill = states[2] ? Brushes.Lime : Brushes.DimGray;
+            if (l4 != null) l4.Fill = states[3] ? Brushes.Lime : Brushes.DimGray;
         }
 
         // --- 動態偵測邏輯 ---
@@ -258,7 +282,7 @@ namespace SmartHomeClient
 
             if (!_isRemoteAuthorized)
             {
-                txtResult?.Text = "Error: Web Authorization Required first!";
+                if (txtResult != null) txtResult.Text = "Error: Web Authorization Required first!";
                 return;
             }
 
@@ -279,7 +303,7 @@ namespace SmartHomeClient
             }
             catch (Exception ex)
             {
-                txtResult?.Text = $"Network Error: {ex.Message}";
+                if (txtResult != null) txtResult.Text = $"Network Error: {ex.Message}";
             }
         }
 
@@ -322,7 +346,7 @@ namespace SmartHomeClient
             string input = boxChat?.Text ?? string.Empty;
             if (string.IsNullOrWhiteSpace(input)) return;
 
-            txtResponse?.Text = "Thinking...";
+            if (txtResponse != null) txtResponse.Text = "Thinking...";
 
             try
             {
@@ -333,7 +357,7 @@ namespace SmartHomeClient
                 var resultJson = await response.Content.ReadAsStringAsync();
                 var aiCmd = JsonSerializer.Deserialize<AiCommand>(resultJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                txtResponse?.Text = aiCmd?.Message;
+                if (txtResponse != null) txtResponse.Text = aiCmd?.Message;
 
                 if (aiCmd?.Targets != null)
                 {
@@ -361,14 +385,17 @@ namespace SmartHomeClient
             }
             catch (Exception ex)
             {
-                txtResponse?.Text = $"Error: {ex.Message}";
+                if (txtResponse != null) txtResponse.Text = $"Error: {ex.Message}";
             }
         }
 
         // --- 鍵盤控制 F1-F4 ---
-        private async void OnKeyDown(object sender, KeyEventArgs e)
+        // 注意：在手機上可能無實體鍵盤，此功能主要保留給 Desktop
+        protected override void OnKeyDown(KeyEventArgs e)
         {
+            base.OnKeyDown(e); // 呼叫基底
             if (_httpClient == null) return;
+
             int ledIndex = 0;
             switch (e.Key)
             {
@@ -380,27 +407,41 @@ namespace SmartHomeClient
 
             if (ledIndex > 0)
             {
-                try
-                {
-                    // 這裡簡化邏輯，直接發送切換請求有點困難，因為不知道當前狀態
-                    // 所以先讀取再切換
-                    var ledJson = await _httpClient.GetStringAsync("/api/hw/leds");
-                    var ledStates = JsonSerializer.Deserialize<bool[]>(ledJson);
-                    if (ledStates != null)
-                    {
-                        bool newState = !ledStates[ledIndex - 1];
-                        await _httpClient.PostAsync($"/api/hw/led/{ledIndex}/{newState}", null);
-                    }
-                }
-                catch { }
+                // 非同步呼叫，但不等待 (Fire and Forget)
+                _ = ToggleLed(ledIndex);
             }
+        }
+
+        private async Task ToggleLed(int ledIndex)
+        {
+            try
+            {
+                var ledJson = await _httpClient.GetStringAsync("/api/hw/leds");
+                var ledStates = JsonSerializer.Deserialize<bool[]>(ledJson);
+                if (ledStates != null)
+                {
+                    bool newState = !ledStates[ledIndex - 1];
+                    await _httpClient.PostAsync($"/api/hw/led/{ledIndex}/{newState}", null);
+                }
+            }
+            catch { }
         }
 
         private void OnOpenLedControl(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_currentApiUrl)) return;
-            var ledWindow = new LedControlWindow(_currentApiUrl);
-            ledWindow.ShowDialog(this);
+
+            var ledOverlay = this.FindControl<LedControlWindow>("LedOverlay");
+            if (ledOverlay != null)
+            {
+                ledOverlay.Init(_currentApiUrl); 
+                ledOverlay.IsVisible = true;   
+            }
+            else
+            {
+                var txt = this.FindControl<TextBlock>("TxtAiResponse");
+                if (txt != null) txt.Text = "Advanced Window not supported on Mobile yet.";
+            }
         }
 
         private async void OnSmartAwayClick(object? sender, RoutedEventArgs e)
@@ -409,8 +450,8 @@ namespace SmartHomeClient
             var txtStatus = this.FindControl<TextBlock>("TxtSmartStatus");
             var btn = this.FindControl<Button>("BtnSmartAway");
 
-            txtStatus?.Text = "Checking camera...";
-            btn?.IsEnabled = false;
+            if (txtStatus != null) txtStatus.Text = "Checking camera...";
+            if (btn != null) btn.IsEnabled = false;
 
             try
             {
@@ -418,15 +459,15 @@ namespace SmartHomeClient
                 var json = await response.Content.ReadAsStringAsync();
                 using var doc = JsonDocument.Parse(json);
                 string message = doc.RootElement.GetProperty("message").GetString() ?? "";
-                txtStatus?.Text = message;
+                if (txtStatus != null) txtStatus.Text = message;
             }
             catch (Exception ex)
             {
-                txtStatus?.Text = $"Error: {ex.Message}";
+                if (txtStatus != null) txtStatus.Text = $"Error: {ex.Message}";
             }
             finally
             {
-                btn?.IsEnabled = true;
+                if (btn != null) btn.IsEnabled = true;
             }
         }
 

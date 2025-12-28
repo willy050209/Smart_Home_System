@@ -1,16 +1,13 @@
-﻿<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="550"
-        x:Class="SmartHomeClient.LedControlWindow"
-        Title="LED Advanced Control"
-        Width="600" Height="550"
-        Background="#1a1a2e"
-        Foreground="White"
-        WindowStartupLocation="CenterOwner">
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="800"
+             x:Class="SmartHomeClient.LedControlWindow"
+             Background="#1a1a2e"
+             Foreground="White">
 
-    <Window.Styles>
+    <UserControl.Styles>
         <Style Selector="Ellipse.ledOff">
             <Setter Property="Fill" Value="#333"/>
             <Setter Property="Stroke" Value="#666"/>
@@ -30,9 +27,8 @@
             <Setter Property="Padding" Value="20"/>
             <Setter Property="Margin" Value="0,10"/>
         </Style>
-    </Window.Styles>
+    </UserControl.Styles>
 
-    <!-- 增加 ScrollViewer 避免視窗過小時內容被切掉 -->
     <ScrollViewer>
         <Border Padding="20">
             <StackPanel Spacing="10">
@@ -100,4 +96,4 @@
             </StackPanel>
         </Border>
     </ScrollViewer>
-</Window>
+</UserControl>

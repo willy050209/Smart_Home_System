@@ -11,33 +11,48 @@ using System.Collections.Generic;
 
 namespace SmartHomeClient
 {
-    public partial class LedControlWindow : Window
+    public partial class LedControlWindow : UserControl
     {
-        private readonly HttpClient _httpClient;
-        private readonly string _apiBaseUrl;
+        private HttpClient? _httpClient; 
+        private string _apiBaseUrl = "";
         private CancellationTokenSource? _blinkCts;
         private bool _isBlinking = false;
         private bool _suppressUiEvents = false;
         private readonly List<ToggleSwitch> _switches = [];
         private readonly List<Avalonia.Controls.Shapes.Ellipse> _indicators = [];
 
-        public LedControlWindow() { InitializeComponent(); } 
+        // 觸發關閉的事件
+        public event EventHandler? RequestClose;
 
-        public LedControlWindow(string baseUrl)
-        {
+        public LedControlWindow() 
+        { 
             InitializeComponent();
+            InitializeControls();
+        } 
+
+        // 外部呼叫初始化
+        public void Init(string baseUrl)
+        {
             _apiBaseUrl = baseUrl;
             _httpClient = new HttpClient { BaseAddress = new Uri(_apiBaseUrl) };
+            
+            StopBlinking();
+            _ = FetchInitialState();
+        }
 
-            _switches.Add(this.FindControl<ToggleSwitch>("SwLed1")!);
-            _switches.Add(this.FindControl<ToggleSwitch>("SwLed2")!);
-            _switches.Add(this.FindControl<ToggleSwitch>("SwLed3")!);
-            _switches.Add(this.FindControl<ToggleSwitch>("SwLed4")!);
+        private void InitializeComponent() { AvaloniaXamlLoader.Load(this); }
 
-            _indicators.Add(this.FindControl<Avalonia.Controls.Shapes.Ellipse>("IndLed1")!);
-            _indicators.Add(this.FindControl<Avalonia.Controls.Shapes.Ellipse>("IndLed2")!);
-            _indicators.Add(this.FindControl<Avalonia.Controls.Shapes.Ellipse>("IndLed3")!);
-            _indicators.Add(this.FindControl<Avalonia.Controls.Shapes.Ellipse>("IndLed4")!);
+        private void InitializeControls()
+        {
+            var sw1 = this.FindControl<ToggleSwitch>("SwLed1"); if (sw1 != null) _switches.Add(sw1);
+            var sw2 = this.FindControl<ToggleSwitch>("SwLed2"); if (sw2 != null) _switches.Add(sw2);
+            var sw3 = this.FindControl<ToggleSwitch>("SwLed3"); if (sw3 != null) _switches.Add(sw3);
+            var sw4 = this.FindControl<ToggleSwitch>("SwLed4"); if (sw4 != null) _switches.Add(sw4);
+
+            var ind1 = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("IndLed1"); if(ind1 != null) _indicators.Add(ind1);
+            var ind2 = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("IndLed2"); if(ind2 != null) _indicators.Add(ind2);
+            var ind3 = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("IndLed3"); if(ind3 != null) _indicators.Add(ind3);
+            var ind4 = this.FindControl<Avalonia.Controls.Shapes.Ellipse>("IndLed4"); if(ind4 != null) _indicators.Add(ind4);
 
             var slider = this.FindControl<Slider>("SliderSpeed");
             var txtFreq = this.FindControl<TextBlock>("TxtFreq");
@@ -47,14 +62,11 @@ namespace SmartHomeClient
                     if (e.Property.Name == "Value") txtFreq.Text = $"{(int)slider.Value} Hz";
                 };
             }
-
-            _ = FetchInitialState();
         }
-
-        private void InitializeComponent() { AvaloniaXamlLoader.Load(this); }
 
         private async Task FetchInitialState()
         {
+            if (_httpClient == null) return;
             try
             {
                 var json = await _httpClient.GetStringAsync("/api/hw/leds");
@@ -88,6 +100,7 @@ namespace SmartHomeClient
 
         private async void OnLedToggle(object? sender, RoutedEventArgs e)
         {
+            if (_httpClient == null) return;
             if (_suppressUiEvents || _isBlinking) return;
             if (sender is ToggleSwitch sw && sw.Name != null)
             {
@@ -119,8 +132,10 @@ namespace SmartHomeClient
             _blinkCts?.Cancel();
             _blinkCts = null;
             _isBlinking = false;
-            this.FindControl<Button>("BtnStartBlink")!.IsEnabled = true;
-            this.FindControl<Button>("BtnStopBlink")!.IsEnabled = false;
+            var btnStart = this.FindControl<Button>("BtnStartBlink");
+            if(btnStart != null) btnStart.IsEnabled = true;
+            var btnStop = this.FindControl<Button>("BtnStopBlink");
+            if(btnStop != null) btnStop.IsEnabled = false;
             foreach (var sw in _switches) sw.IsEnabled = true;
             _ = FetchInitialState();
         }
@@ -152,6 +167,7 @@ namespace SmartHomeClient
 
         private async Task SetLedsRaw(bool l1, bool l2, bool l3, bool l4)
         {
+            if (_httpClient == null) return;
             bool[] states = { l1, l2, l3, l4 };
             var tasks = new List<Task>();
             for (int i = 0; i < 4; i++)
@@ -166,7 +182,7 @@ namespace SmartHomeClient
         private void OnCloseClick(object sender, RoutedEventArgs e)
         {
             StopBlinking();
-            this.Close();
+            RequestClose?.Invoke(this, EventArgs.Empty);
         }
     }
 }
