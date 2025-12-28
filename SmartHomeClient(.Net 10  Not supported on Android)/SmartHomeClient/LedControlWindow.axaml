@@ -1,0 +1,103 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="550"
+        x:Class="SmartHomeClient.LedControlWindow"
+        Title="LED Advanced Control"
+        Width="600" Height="550"
+        Background="#1a1a2e"
+        Foreground="White"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <Style Selector="Ellipse.ledOff">
+            <Setter Property="Fill" Value="#333"/>
+            <Setter Property="Stroke" Value="#666"/>
+        </Style>
+        <Style Selector="Ellipse.ledOn">
+            <Setter Property="Fill" Value="#00FF00"/>
+            <Setter Property="Stroke" Value="White"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#00FF00" BlurRadius="10" Opacity="0.8"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style Selector="Border.panel">
+            <Setter Property="Background" Value="#16213e"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="0,10"/>
+        </Style>
+    </Window.Styles>
+
+    <!-- 增加 ScrollViewer 避免視窗過小時內容被切掉 -->
+    <ScrollViewer>
+        <Border Padding="20">
+            <StackPanel Spacing="10">
+                <TextBlock Text="LED COMMAND CENTER" Foreground="#4cc9f0" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+
+                <Border Classes="panel">
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="MANUAL CONTROL" Foreground="#a0a0a0" FontWeight="Bold"/>
+                        <Grid ColumnDefinitions="*,*,*,*">
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Center" Spacing="5">
+                                <Ellipse Name="IndLed1" Width="40" Height="40" Classes="ledOff" StrokeThickness="2"/>
+                                <TextBlock Text="LED 1" HorizontalAlignment="Center"/>
+                                <ToggleSwitch Name="SwLed1" Checked="OnLedToggle" Unchecked="OnLedToggle"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Center" Spacing="5">
+                                <Ellipse Name="IndLed2" Width="40" Height="40" Classes="ledOff" StrokeThickness="2"/>
+                                <TextBlock Text="LED 2" HorizontalAlignment="Center"/>
+                                <ToggleSwitch Name="SwLed2" Checked="OnLedToggle" Unchecked="OnLedToggle"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center" Spacing="5">
+                                <Ellipse Name="IndLed3" Width="40" Height="40" Classes="ledOff" StrokeThickness="2"/>
+                                <TextBlock Text="LED 3" HorizontalAlignment="Center"/>
+                                <ToggleSwitch Name="SwLed3" Checked="OnLedToggle" Unchecked="OnLedToggle"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="3" HorizontalAlignment="Center" Spacing="5">
+                                <Ellipse Name="IndLed4" Width="40" Height="40" Classes="ledOff" StrokeThickness="2"/>
+                                <TextBlock Text="LED 4" HorizontalAlignment="Center"/>
+                                <ToggleSwitch Name="SwLed4" Checked="OnLedToggle" Unchecked="OnLedToggle"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="panel">
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="BLINKING PATTERNS" Foreground="#a0a0a0" FontWeight="Bold"/>
+
+                        <Grid ColumnDefinitions="Auto, *, Auto" RowDefinitions="Auto, Auto" Margin="0,10">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1" Name="ComboMode" SelectedIndex="0" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="Synchronized (All Blink)"/>
+                                <ComboBoxItem Content="Running Light (Chase)"/>
+                                <ComboBoxItem Content="Alternating (1&amp;3 vs 2&amp;4)"/>
+                                <ComboBoxItem Content="Random Chaos"/>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Speed:" VerticalAlignment="Center" Margin="0,15,10,0"/>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,15,0,0">
+                                <Slider Name="SliderSpeed" Minimum="1" Maximum="10" Value="2" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                                <TextBlock Name="TxtFreq" Text="2 Hz" Foreground="#4cc9f0" FontSize="12" HorizontalAlignment="Right"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*">
+                            <Button Grid.Column="0" Name="BtnStartBlink" Content="START SEQUENCE" Background="#0f3460" Foreground="#4cc9f0" BorderBrush="#4cc9f0" BorderThickness="1"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,5,0" Click="OnStartBlink"/>
+                            
+                            <Button Grid.Column="1" Name="BtnStopBlink" Content="STOP" Background="#5c1a1a" Foreground="White" IsEnabled="False"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="5,0,0,0" Click="OnStopBlink"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                
+                <Button Content="Back" Click="OnCloseClick" HorizontalAlignment="Center" Background="Transparent" Foreground="#666" Margin="0,10,0,0"/>
+            </StackPanel>
+        </Border>
+    </ScrollViewer>
+</Window>
