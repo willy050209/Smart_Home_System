@@ -1,0 +1,121 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧家庭遠端授權</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 400px;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+            color: #1a73e8;
+        }
+
+        p {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        #authBtn {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            box-shadow: 5px 5px 10px #d1d1d1, -5px -5px 10px #ffffff;
+            color: #1a73e8;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+            #authBtn:active {
+                box-shadow: inset 5px 5px 10px #d1d1d1, inset -5px -5px 10px #ffffff;
+                transform: scale(0.95);
+            }
+
+            #authBtn.authorized {
+                background: #34a853;
+                color: white;
+                box-shadow: inset 5px 5px 10px #267c3d, inset -5px -5px 10px #42d469;
+            }
+
+        .status {
+            margin-top: 1.5rem;
+            font-weight: bold;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>安全協同授權</h1>
+        <p>請按下按鈕以允許遠端操作</p>
+
+        <button id="authBtn">授權</button>
+
+        <div id="statusMsg" class="status"></div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('authBtn');
+        const msg = document.getElementById('statusMsg');
+        let timer = null;
+
+        btn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/auth/authorize', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    btn.classList.add('authorized');
+                    btn.textContent = "已授權";
+                    msg.textContent = "授權有效時間: 30秒";
+                    msg.style.color = "#34a853";
+
+                    if (timer) clearTimeout(timer);
+                    timer = setTimeout(() => {
+                        btn.classList.remove('authorized');
+                        btn.textContent = "授權";
+                        msg.textContent = "授權已過期";
+                        msg.style.color = "#d93025";
+                    }, 30000);
+                } else {
+                    msg.textContent = "連線錯誤";
+                }
+            } catch (err) {
+                console.error(err);
+                msg.textContent = "無法連接伺服器";
+            }
+        });
+    </script>
+</body>
+</html>

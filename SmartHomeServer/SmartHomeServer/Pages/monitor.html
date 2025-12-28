@@ -1,0 +1,334 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全域環境監控中心</title>
+    <style>
+        :root {
+            --primary-bg: #1a1a2e;
+            --card-bg: #16213e;
+            --accent-color: #0f3460;
+            --text-color: #e94560;
+            --text-light: #f0f0f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-light);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            margin-bottom: 2rem;
+            color: #4cc9f0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 2px solid #4cc9f0;
+            padding-bottom: 10px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #2a2a4e;
+        }
+
+            .card:hover {
+                transform: translateY(-5px);
+                border-color: #4cc9f0;
+            }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #4cc9f0;
+        }
+
+        .connection-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #555;
+            border-radius: 50%;
+            box-shadow: 0 0 5px #555;
+            transition: all 0.3s;
+        }
+
+        .connected {
+            background-color: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .data-label {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+        }
+
+        .data-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .unit {
+            font-size: 0.8rem;
+            color: #888;
+            margin-left: 5px;
+        }
+
+        .val-temp {
+            color: #ff6b6b;
+        }
+
+        .val-hum {
+            color: #4ecdc4;
+        }
+
+        .val-pres {
+            color: #ffe66d;
+        }
+
+        .val-light {
+            color: #f7fff7;
+        }
+
+        .updated-time {
+            font-size: 0.7rem;
+            color: #666;
+            text-align: right;
+            margin-top: 10px;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4cc9f0, #4ecdc4);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+</head>
+<body>
+
+    <h1>Smart Home Dashboard</h1>
+
+    <div class="grid-container">
+
+        <!-- 客廳 (WiFi/MQTT) -->
+        <div class="card" id="card-mqtt">
+            <div class="card-header">
+                <div class="card-title">Living Room (WiFi)</div>
+                <div class="connection-dot" id="status-mqtt"></div>
+            </div>
+
+            <div class="data-row">
+                <div class="data-label">溫度</div>
+                <div>
+                    <span class="data-value val-temp" id="mqtt-temp">--</span>
+                    <span class="unit">°C</span>
+                </div>
+            </div>
+
+            <div class="data-row">
+                <div class="data-label">濕度</div>
+                <div>
+                    <span class="data-value val-hum" id="mqtt-hum">--</span>
+                    <span class="unit">%</span>
+                </div>
+            </div>
+
+            <div class="data-row">
+                <div class="data-label">氣壓</div>
+                <div>
+                    <span class="data-value val-pres" id="mqtt-pres">--</span>
+                    <span class="unit">hPa</span>
+                </div>
+            </div>
+
+            <div class="updated-time">Last Update: <span id="mqtt-time">Never</span></div>
+        </div>
+
+        <!--臥室/遠端 (Bluetooth) -->
+        <div class="card" id="card-bt">
+            <div class="card-header">
+                <div class="card-title">Remote Unit (Bluetooth)</div>
+                <div class="connection-dot" id="status-bt"></div>
+            </div>
+
+            <div class="data-row">
+                <div class="data-label">溫度</div>
+                <div>
+                    <span class="data-value val-temp" id="bt-temp">--</span>
+                    <span class="unit">°C</span>
+                </div>
+            </div>
+
+            <div class="data-row">
+                <div class="data-label">濕度</div>
+                <div>
+                    <span class="data-value val-hum" id="bt-hum">--</span>
+                    <span class="unit">%</span>
+                </div>
+            </div>
+
+            <div class="data-row">
+                <div class="data-label">氣壓</div>
+                <div>
+                    <span class="data-value val-pres" id="bt-pres">--</span>
+                    <span class="unit">hPa</span>
+                </div>
+            </div>
+
+            <div class="updated-time">Last Update: <span id="bt-time">Never</span></div>
+        </div>
+
+        <!-- TX2 本機 (Light Sensor) -->
+        <div class="card" id="card-local">
+            <div class="card-header">
+                <div class="card-title">Server Room (TX2 Local)</div>
+                <div class="connection-dot connected"></div> 
+            </div>
+
+            <div class="data-row" style="flex-direction: column; align-items: flex-start;">
+                <div style="display:flex; justify-content:space-between; width:100%">
+                    <div class="data-label">光照強度 (Light)</div>
+                    <div>
+                        <span class="data-value val-light" id="local-light">--</span>
+                        <span class="unit">Lux/Raw</span>
+                    </div>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="light-bar"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: 1rem; color: #888; font-size: 0.9rem;">
+                <p>Status: Local SPI Interface Active</p>
+                <p>Driver: MCP3008 / spidev</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/sensorHub")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("ReceiveSensorData", function (jsonString) {
+            try {
+                const data = JSON.parse(jsonString);
+                const now = new Date().toLocaleTimeString();
+
+                if (data.sensorId === "esp32_01") {
+                    updateMqttCard(data, now);
+                }
+                else if (data.sensorId === "esp32_bt_01") {
+                    updateBtCard(data, now);
+                }
+            } catch (e) {
+                console.error("JSON Parse Error:", e);
+            }
+        });
+
+        function updateMqttCard(data, time) {
+            document.getElementById("mqtt-temp").innerText = data.temp.toFixed(1);
+            document.getElementById("mqtt-hum").innerText = data.hum.toFixed(1);
+            document.getElementById("mqtt-pres").innerText = data.pressure.toFixed(0);
+            document.getElementById("mqtt-time").innerText = time;
+
+            pulseCard("status-mqtt");
+        }
+
+        function updateBtCard(data, time) {
+            document.getElementById("bt-temp").innerText = data.temp.toFixed(1);
+            document.getElementById("bt-hum").innerText = data.hum.toFixed(1);
+            document.getElementById("bt-pres").innerText = data.pressure.toFixed(0);
+            document.getElementById("bt-time").innerText = time;
+
+            pulseCard("status-bt");
+        }
+
+        function pulseCard(dotId) {
+            const dot = document.getElementById(dotId);
+            dot.classList.add("connected");
+
+            clearTimeout(dot.timer);
+            dot.timer = setTimeout(() => {
+                dot.classList.remove("connected");
+            }, 6000); 
+        }
+
+        connection.start().catch(err => console.error(err));
+
+
+        async function fetchLightSensor() {
+            try {
+                const response = await fetch('/api/hw/sensor');
+                if (response.ok) {
+                    const data = await response.json(); 
+
+                    const val = data.light;
+                    document.getElementById("local-light").innerText = val;
+
+                    const percent = Math.min(100, Math.max(0, (val / 1023) * 100));
+                    document.getElementById("light-bar").style.width = percent + "%";
+                }
+            } catch (err) {
+                console.error("Fetch Light Error:", err);
+            }
+        }
+
+        setInterval(fetchLightSensor, 1000);
+        fetchLightSensor(); 
+
+    </script>
+</body>
+</html>
