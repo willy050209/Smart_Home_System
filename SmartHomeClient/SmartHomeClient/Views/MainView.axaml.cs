@@ -1,5 +1,6 @@
-﻿using Avalonia.Controls;
-using Avalonia.Controls.Shapes; // For Ellipse
+﻿using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Shapes; 
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -13,7 +14,6 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-//using Tmds.DBus.Protocol; // 在 Android 可能不相容，先註解掉
 
 namespace SmartHomeClient.Views
 {
@@ -31,6 +31,12 @@ namespace SmartHomeClient.Views
         public MainView()
         {
             InitializeComponent();
+			
+			if (OperatingSystem.IsAndroid())
+            {
+
+                this.Padding = new Thickness(0, 35, 0, 0);
+            }
 
             _timerUi = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             _timerUi.Tick += OnUiLoop;
@@ -414,6 +420,7 @@ namespace SmartHomeClient.Views
 
         private async Task ToggleLed(int ledIndex)
         {
+			if (_httpClient == null) return;
             try
             {
                 var ledJson = await _httpClient.GetStringAsync("/api/hw/leds");

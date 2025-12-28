@@ -39,9 +39,8 @@
     </ItemGroup>
 
     <ItemGroup Condition="$(TargetFramework.Contains('android'))">
-        <Compile Remove="Views\MainWindow.axaml.cs" />
-        <AvaloniaResource Remove="Views\MainWindow.axaml" />
-    </ItemGroup>
+		<Compile Remove="Program.cs" />
+	</ItemGroup>
 	
 	<ItemGroup Condition="$(TargetFramework.Contains('android'))">
         <AndroidResource Include="Android\Resources\**\*" />

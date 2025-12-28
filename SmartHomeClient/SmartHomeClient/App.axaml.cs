@@ -16,7 +16,9 @@ namespace SmartHomeClient
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
+#if !ANDROID
                 desktop.MainWindow = new MainWindow();
+#endif
             }
             else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
             {
