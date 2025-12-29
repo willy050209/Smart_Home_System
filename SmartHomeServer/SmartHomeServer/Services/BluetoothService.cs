@@ -35,7 +35,7 @@
 
                         if (!string.IsNullOrWhiteSpace(message))
                         {
-                            Console.WriteLine($"[BT 收到數據] {message}");
+                            //Console.WriteLine($"[BT 收到數據] {message}");
 
                             await _hubContext.Clients.All.SendAsync("ReceiveSensorData", message, stoppingToken);
                         }
@@ -44,7 +44,7 @@
                 catch (TimeoutException) { /* 忽略讀取超時 */ }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[BT Error] {ex.Message}. Retrying in 5s...");
+                    //Console.WriteLine($"[BT Error] {ex.Message}. Retrying in 5s...");
                     CloseSerialPort();
                     await Task.Delay(5000, stoppingToken);
                 }
@@ -65,11 +65,11 @@
                         WriteTimeout = 1000
                     };
                     _serialPort.Open();
-                    Console.WriteLine($"[BT] Connected to {PortName}");
+                    //Console.WriteLine($"[BT] Connected to {PortName}");
                 }
                 else
                 {
-                    Console.WriteLine($"[BT] Device {PortName} not found. Waiting...");
+                    //Console.WriteLine($"[BT] Device {PortName} not found. Waiting...");
                 }
             }
             catch (Exception ex)
