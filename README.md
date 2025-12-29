@@ -7,7 +7,7 @@
 本專案包含以下五大核心模組：
 
 1. **SmartHomeServer**: 運行於 Jetson TX2 的核心伺服器 (ASP.NET Core)。負責硬體控制 (GPIO/SPI/Camera)、AI 處理、MQTT Broker 溝通與 API 服務。  
-2. **SmartHomeClient**: 跨平台桌面控制端 (Avalonia UI)。提供即時影像監控、儀表板、AI 聊天室與黑盒子日誌查看。  
+2. **SmartHomeClient**: 跨平台控制端 (Avalonia UI)。支援 Windows / macOS / Linux / Android。提供即時影像監控、儀表板、AI 聊天室與黑盒子日誌查看。
 3. **Blackbox Driver**: Linux Kernel Module (字元驅動裝置)。實作核心層級的安全性日誌記錄 (/dev/blackbox)。  
 4. **ESP32 Nodes**:  
    * **MQTT Node**: 透過 WiFi 傳送溫濕度數據，具備自動除濕控制功能。  
