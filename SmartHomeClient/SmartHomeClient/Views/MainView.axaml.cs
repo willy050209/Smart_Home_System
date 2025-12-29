@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes; 
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -25,6 +26,7 @@ namespace SmartHomeClient.Views
 
         private readonly DispatcherTimer _timerUi;
         private readonly DispatcherTimer _timerPoll;
+        private bool _isDraggingSlider = false;
 
         private Mat? _prevFrame;
 
@@ -50,6 +52,18 @@ namespace SmartHomeClient.Views
             {
                 ledOverlay.RequestClose += (s, e) => {
                     ledOverlay.IsVisible = false; // 隱藏面板
+                };
+            }
+
+            var slider = this.FindControl<Slider>("SliderFan");
+            if (slider != null)
+            {
+                slider.PropertyChanged += (s, e) => {
+                    if (e.Property.Name == "Value")
+                    {
+                        var txt = this.FindControl<TextBlock>("TxtTargetPwm");
+                        if (txt != null) txt.Text = ((int)slider.Value).ToString();
+                    }
                 };
             }
         }
@@ -164,6 +178,42 @@ namespace SmartHomeClient.Views
 
             try
             {
+                // 讀取系統狀態
+                var sysJson = await _httpClient.GetStringAsync("/api/hw/system-status");
+                var sysOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var status = JsonSerializer.Deserialize<SystemStatus>(sysJson, sysOptions);
+
+                if (status != null)
+                {
+                    var textcuptemp = this.FindControl<TextBlock>("TxtCpuTemp");
+                    var textfanspeed = this.FindControl<TextBlock>("TxtFanSpeed");
+                    if(textcuptemp != null) textcuptemp.Text = status.CpuTemp.ToString("F1");
+                    if (textfanspeed != null) textfanspeed.Text = status.FanSpeed.ToString();
+
+                    var btnAuto = this.FindControl<ToggleButton>("BtnAutoFan");
+                    var slider = this.FindControl<Slider>("SliderFan");
+
+                    if (btnAuto != null)
+                    {
+                        // 只有當狀態不一致時才更新 UI，避免干擾使用者操作
+                        if (btnAuto.IsChecked != status.IsAutoFan)
+                        {
+                            btnAuto.IsChecked = status.IsAutoFan;
+                            btnAuto.Content = status.IsAutoFan ? "AUTO MODE" : "MANUAL";
+                        }
+                    }
+
+                    if (slider != null)
+                    {
+                        slider.IsEnabled = !status.IsAutoFan; // 自動模式下禁用 Slider
+                        // 如果是自動模式，或者手動模式但使用者沒有在拖動，則更新 Slider 位置
+                        if (status.IsAutoFan || !_isDraggingSlider)
+                        {
+                            slider.Value = status.FanSpeed;
+                        }
+                    }
+                }
+
                 // 讀取光感應器
                 var sensorJson = await _httpClient.GetStringAsync("/api/hw/sensor");
                 using var doc = JsonDocument.Parse(sensorJson);
@@ -478,11 +528,49 @@ namespace SmartHomeClient.Views
             }
         }
 
+        private async void OnAutoFanToggle(object? sender, RoutedEventArgs e)
+        {
+            if (_httpClient == null) return;
+            var btn = sender as ToggleButton;
+            bool isAuto = btn?.IsChecked ?? true;
+
+            btn!.Content = isAuto ? "AUTO MODE" : "MANUAL";
+            var slider = this.FindControl<Slider>("SliderFan");
+            if (slider != null) slider.IsEnabled = !isAuto;
+
+            if (isAuto)
+            {
+                await _httpClient.PostAsync("/api/hw/fan/auto", null);
+            }
+            else
+            {
+                int pwm = (int)(slider?.Value ?? 0);
+                await _httpClient.PostAsync($"/api/hw/fan/manual/{pwm}", null);
+            }
+        }
+
+        private async void OnFanSliderRelease(object? sender, PointerCaptureLostEventArgs e)
+        {
+            if (_httpClient == null) return;
+            if (sender is Slider slider && slider.IsEnabled)
+            {
+                int pwm = (int)slider.Value;
+                await _httpClient.PostAsync($"/api/hw/fan/manual/{pwm}", null);
+            }
+        }
+
         public class AiCommand
         {
             public string? Action { get; set; }
             public int[]? Targets { get; set; }
             public string? Message { get; set; }
+        }
+
+        public class SystemStatus
+        {
+            public double CpuTemp { get; set; }
+            public int FanSpeed { get; set; }
+            public bool IsAutoFan { get; set; }
         }
     }
 }
