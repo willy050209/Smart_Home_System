@@ -1,44 +1,43 @@
-# --- 第一階段：建置環境 (SDK) ---
-# FIX: 使用 .NET 10 SDK (配合您的專案設定)
+# 階段 1: 建置 (Build)
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# 1. 先複製專案檔並還原相依套件 (利用 Docker Cache 加速)
+# 複製專案檔並還原依賴
 COPY ["SmartHomeServer.csproj", "./"]
-# 明確指定還原 linux-arm64 架構的套件
-RUN dotnet restore -r linux-arm64 "SmartHomeServer.csproj"
+RUN dotnet restore "SmartHomeServer.csproj"
 
-# 2. 複製剩餘程式碼並編譯
+# 複製其餘程式碼並發布
 COPY . .
-# FIX: 修正專案檔名為 SmartHomeServer.csproj (解決 MSB1009 錯誤)
-RUN dotnet publish "SmartHomeServer.csproj" -c Release -o /app/publish -r linux-arm64 --no-self-contained
+# -c Release: 使用 Release 模式
+# -r linux-arm64: 明確指定目標為 TX2 的架構 (ARM64)
+# --self-contained false: 使用共享框架以縮減體積
+RUN dotnet publish "SmartHomeServer.csproj" -c Release -r linux-arm64 --self-contained false -o /app/publish
 
-# --- 第二階段：執行環境 (Runtime) ---
-# 使用 ASP.NET Core Runtime 10.0 (支援 ARM64)
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+# 階段 2: 執行 (Runtime)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
-# 3. 安裝硬體與視覺所需的原生函式庫
-# libopencv-dev: OpenCV 依賴
-# libgdiplus: 處理圖片時常需要的 GDI+ 相容層 (System.Drawing)
-# libgpiod-dev: GPIO 控制可能需要
-# tzdata: 設定時區需要此套件
+# 安裝 OpenCV 與 System.Drawing 所需的原生依賴
+# libgdiplus: 支援 System.Drawing
+# libgomp1: OpenCV 的多執行緒支援 (OpenMP)
+# libopencv-dev: 包含 OpenCV 的基礎函式庫
 RUN apt-get update && apt-get install -y \
-    libopencv-dev \
     libgdiplus \
-    libc6-dev \
-    v4l-utils \
-    tzdata \
-    util-linux \   
+    libgomp1 \
+    libopencv-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. 從建置階段複製編譯好的檔案
+# 從建置階段複製發布的檔案
 COPY --from=build /app/publish .
 
-# 5. 設定環境變數
-ENV ASPNETCORE_URLS=http://+:8080
-# 設定時區為台北 (方便 Log 檢視)
+
+ENV DOTNET_RUNNING_IN_CONTAINER=true
+# 設定時區 
 ENV TZ=Asia/Taipei
 
-# 6. 啟動伺服器
+# 因為我們需要存取 /dev/blackbox, /dev/video0, /dev/gpiomem, /sys/class/pwm
+# 且需要寫入權限下載模型檔案 (.prototxt)
+USER root
+
 ENTRYPOINT ["dotnet", "SmartHomeServer.dll"]

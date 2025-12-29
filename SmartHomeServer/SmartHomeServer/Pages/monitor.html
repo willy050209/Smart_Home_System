@@ -129,6 +129,10 @@
             color: #f7fff7;
         }
 
+        .val-fan {
+            color: #a8dadc;
+        }
+
         .updated-time {
             font-size: 0.7rem;
             color: #666;
@@ -151,6 +155,13 @@
             width: 0%;
             transition: width 0.5s ease;
         }
+
+        .fan-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a8dadc, #457b9d);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
 </head>
@@ -160,98 +171,85 @@
 
     <div class="grid-container">
 
-        <!-- 客廳 (WiFi/MQTT) -->
-        <div class="card" id="card-mqtt">
+        <!-- TX2 System Status (NEW) -->
+        <div class="card" id="card-system">
             <div class="card-header">
-                <div class="card-title">Living Room (WiFi)</div>
-                <div class="connection-dot" id="status-mqtt"></div>
+                <div class="card-title">TX2 System Health</div>
+                <div class="connection-dot connected"></div>
             </div>
 
             <div class="data-row">
-                <div class="data-label">溫度</div>
+                <div class="data-label">CPU Temp</div>
                 <div>
-                    <span class="data-value val-temp" id="mqtt-temp">--</span>
+                    <span class="data-value val-temp" id="sys-temp">--</span>
                     <span class="unit">°C</span>
                 </div>
-            </div>
-
-            <div class="data-row">
-                <div class="data-label">濕度</div>
-                <div>
-                    <span class="data-value val-hum" id="mqtt-hum">--</span>
-                    <span class="unit">%</span>
-                </div>
-            </div>
-
-            <div class="data-row">
-                <div class="data-label">氣壓</div>
-                <div>
-                    <span class="data-value val-pres" id="mqtt-pres">--</span>
-                    <span class="unit">hPa</span>
-                </div>
-            </div>
-
-            <div class="updated-time">Last Update: <span id="mqtt-time">Never</span></div>
-        </div>
-
-        <!--臥室/遠端 (Bluetooth) -->
-        <div class="card" id="card-bt">
-            <div class="card-header">
-                <div class="card-title">Remote Unit (Bluetooth)</div>
-                <div class="connection-dot" id="status-bt"></div>
-            </div>
-
-            <div class="data-row">
-                <div class="data-label">溫度</div>
-                <div>
-                    <span class="data-value val-temp" id="bt-temp">--</span>
-                    <span class="unit">°C</span>
-                </div>
-            </div>
-
-            <div class="data-row">
-                <div class="data-label">濕度</div>
-                <div>
-                    <span class="data-value val-hum" id="bt-hum">--</span>
-                    <span class="unit">%</span>
-                </div>
-            </div>
-
-            <div class="data-row">
-                <div class="data-label">氣壓</div>
-                <div>
-                    <span class="data-value val-pres" id="bt-pres">--</span>
-                    <span class="unit">hPa</span>
-                </div>
-            </div>
-
-            <div class="updated-time">Last Update: <span id="bt-time">Never</span></div>
-        </div>
-
-        <!-- TX2 本機 (Light Sensor) -->
-        <div class="card" id="card-local">
-            <div class="card-header">
-                <div class="card-title">Server Room (TX2 Local)</div>
-                <div class="connection-dot connected"></div> 
             </div>
 
             <div class="data-row" style="flex-direction: column; align-items: flex-start;">
                 <div style="display:flex; justify-content:space-between; width:100%">
-                    <div class="data-label">光照強度 (Light)</div>
+                    <div class="data-label">Fan Speed (PWM)</div>
+                    <div>
+                        <span class="data-value val-fan" id="sys-fan">--</span>
+                        <span class="unit" id="sys-mode">(Auto)</span>
+                    </div>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill fan-bar-fill" id="fan-bar"></div>
+                </div>
+            </div>
+
+            <div class="updated-time">Monitor: /sys/class/thermal & pwm</div>
+        </div>
+
+        <!-- Local Light Sensor -->
+        <div class="card" id="card-local">
+            <div class="card-header">
+                <div class="card-title">Server Room (Light)</div>
+                <div class="connection-dot connected"></div>
+            </div>
+            <div class="data-row" style="flex-direction: column; align-items: flex-start;">
+                <div style="display:flex; justify-content:space-between; width:100%">
+                    <div class="data-label">Intensity</div>
                     <div>
                         <span class="data-value val-light" id="local-light">--</span>
-                        <span class="unit">Lux/Raw</span>
+                        <span class="unit">Lux</span>
                     </div>
                 </div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill" id="light-bar"></div>
                 </div>
             </div>
+        </div>
 
-            <div style="margin-top: 1rem; color: #888; font-size: 0.9rem;">
-                <p>Status: Local SPI Interface Active</p>
-                <p>Driver: MCP3008 / spidev</p>
+        <!-- MQTT Node -->
+        <div class="card" id="card-mqtt">
+            <div class="card-header">
+                <div class="card-title">Living Room (WiFi)</div>
+                <div class="connection-dot" id="status-mqtt"></div>
             </div>
+            <div class="data-row">
+                <div class="data-label">Temp</div>
+                <div><span class="data-value val-temp" id="mqtt-temp">--</span><span class="unit">°C</span></div>
+            </div>
+            <div class="data-row">
+                <div class="data-label">Humidity</div>
+                <div><span class="data-value val-hum" id="mqtt-hum">--</span><span class="unit">%</span></div>
+            </div>
+            <div class="updated-time">Last: <span id="mqtt-time">Never</span></div>
+        </div>
+
+        <!-- BT Node -->
+        <div class="card" id="card-bt">
+            <div class="card-header">
+                <div class="card-title">Remote Unit (BT)</div>
+                <div class="connection-dot" id="status-bt"></div>
+            </div>
+            <div class="data-row">
+                <div class="data-label">Temp</div>
+                <div><span class="data-value val-temp" id="bt-temp">--</span><span class="unit">°C</span></div>
+            </div>
+            <div class="updated-time">Last: <span id="bt-time">Never</span></div>
         </div>
 
     </div>
@@ -268,67 +266,55 @@
                 const now = new Date().toLocaleTimeString();
 
                 if (data.sensorId === "esp32_01") {
-                    updateMqttCard(data, now);
+                    document.getElementById("mqtt-temp").innerText = data.temp.toFixed(1);
+                    document.getElementById("mqtt-hum").innerText = data.hum.toFixed(1);
+                    document.getElementById("mqtt-time").innerText = now;
+                    pulseCard("status-mqtt");
                 }
                 else if (data.sensorId === "esp32_bt_01") {
-                    updateBtCard(data, now);
+                    document.getElementById("bt-temp").innerText = data.temp.toFixed(1);
+                    document.getElementById("bt-time").innerText = now;
+                    pulseCard("status-bt");
                 }
-            } catch (e) {
-                console.error("JSON Parse Error:", e);
-            }
+            } catch (e) { }
         });
-
-        function updateMqttCard(data, time) {
-            document.getElementById("mqtt-temp").innerText = data.temp.toFixed(1);
-            document.getElementById("mqtt-hum").innerText = data.hum.toFixed(1);
-            document.getElementById("mqtt-pres").innerText = data.pressure.toFixed(0);
-            document.getElementById("mqtt-time").innerText = time;
-
-            pulseCard("status-mqtt");
-        }
-
-        function updateBtCard(data, time) {
-            document.getElementById("bt-temp").innerText = data.temp.toFixed(1);
-            document.getElementById("bt-hum").innerText = data.hum.toFixed(1);
-            document.getElementById("bt-pres").innerText = data.pressure.toFixed(0);
-            document.getElementById("bt-time").innerText = time;
-
-            pulseCard("status-bt");
-        }
 
         function pulseCard(dotId) {
             const dot = document.getElementById(dotId);
             dot.classList.add("connected");
-
             clearTimeout(dot.timer);
-            dot.timer = setTimeout(() => {
-                dot.classList.remove("connected");
-            }, 6000); 
+            dot.timer = setTimeout(() => { dot.classList.remove("connected"); }, 6000);
         }
 
         connection.start().catch(err => console.error(err));
 
-
-        async function fetchLightSensor() {
+        async function fetchSystemData() {
             try {
-                const response = await fetch('/api/hw/sensor');
-                if (response.ok) {
-                    const data = await response.json(); 
-
+                const resLight = await fetch('/api/hw/sensor');
+                if (resLight.ok) {
+                    const data = await resLight.json();
                     const val = data.light;
                     document.getElementById("local-light").innerText = val;
-
-                    const percent = Math.min(100, Math.max(0, (val / 1023) * 100));
-                    document.getElementById("light-bar").style.width = percent + "%";
+                    document.getElementById("light-bar").style.width = Math.min(100, (val / 1023) * 100) + "%";
                 }
-            } catch (err) {
-                console.error("Fetch Light Error:", err);
-            }
+
+                const resSys = await fetch('/api/hw/system-status');
+                if (resSys.ok) {
+                    const sys = await resSys.json();
+
+                    document.getElementById("sys-temp").innerText = sys.cpuTemp.toFixed(1);
+                    document.getElementById("sys-fan").innerText = sys.fanSpeed;
+                    document.getElementById("sys-mode").innerText = sys.isAutoFan ? "(Auto)" : "(Manual)";
+
+                    const fanPercent = (sys.fanSpeed / 255.0) * 100;
+                    document.getElementById("fan-bar").style.width = fanPercent + "%";
+                }
+
+            } catch (err) { console.error(err); }
         }
 
-        setInterval(fetchLightSensor, 1000);
-        fetchLightSensor(); 
-
+        setInterval(fetchSystemData, 1000); 
+        fetchSystemData();
     </script>
 </body>
 </html>

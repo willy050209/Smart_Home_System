@@ -1,10 +1,11 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Controls.Primitives; 
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
-using Microsoft.AspNetCore.SignalR.Client; 
+using Microsoft.AspNetCore.SignalR.Client;
 using OpenCvSharp;
 using System;
 using System.IO;
@@ -12,7 +13,6 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Tmds.DBus.Protocol;
 
 namespace SmartHomeClient
 {
@@ -26,16 +26,27 @@ namespace SmartHomeClient
         private readonly DispatcherTimer _timerPoll;
 
         private Mat? _prevFrame;
+        private bool _isDraggingSlider = false; 
 
         public MainWindow()
         {
             InitializeComponent();
 
-            _timerUi = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+            _timerUi = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) }; 
             _timerUi.Tick += OnUiLoop;
 
             _timerPoll = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _timerPoll.Tick += async (s, e) => await PollAuthStatus();
+
+            // 綁定 Slider 數值即時顯示事件
+            var slider = this.FindControl<Slider>("SliderFan");
+            slider?.PropertyChanged += (s, e) => {
+                if (e.Property.Name == "Value")
+                {
+                    var txt = this.FindControl<TextBlock>("TxtTargetPwm");
+                    txt?.Text = ((int)slider.Value).ToString();
+                }
+            };
         }
 
         // --- 連線邏輯 ---
@@ -83,6 +94,12 @@ namespace SmartHomeClient
             catch (Exception ex)
             {
                 Console.WriteLine($"Connection Error: {ex.Message}");
+                var txtUrlDisplay = this.FindControl<TextBlock>("TxtServerUrlDisplay");
+                if (txtUrlDisplay != null)
+                {
+                    txtUrlDisplay.Text = $"連線失敗: {ex.Message}";
+                    txtUrlDisplay.Foreground = Brushes.Red;
+                }
             }
         }
 
@@ -110,28 +127,38 @@ namespace SmartHomeClient
                 string sensorId = root.GetProperty("sensorId").GetString() ?? "";
                 double temp = root.GetProperty("temp").GetDouble();
                 double hum = root.GetProperty("hum").GetDouble();
-                double pres = root.GetProperty("pressure").GetDouble();
+
+                // 相容性: 檢查是否有 pressure
+                double pres = 0;
+                if (root.TryGetProperty("pressure", out var p)) pres = p.GetDouble();
+
                 string time = DateTime.Now.ToString("HH:mm:ss");
 
                 if (sensorId == "esp32_01") // MQTT Node
                 {
-                    this.FindControl<TextBlock>("TxtMqttTemp")!.Text = temp.ToString("F1");
-                    this.FindControl<TextBlock>("TxtMqttHum")!.Text = hum.ToString("F1");
-                    this.FindControl<TextBlock>("TxtMqttPres")!.Text = pres.ToString("F0");
-                    this.FindControl<TextBlock>("TxtMqttTime")!.Text = "Last Update: " + time;
+                    SetText("TxtMqttTemp", temp.ToString("F1"));
+                    SetText("TxtMqttHum", hum.ToString("F1"));
+                    SetText("TxtMqttPres", pres.ToString("F0"));
+                    SetText("TxtMqttTime", "Last Update: " + time);
                 }
                 else if (sensorId == "esp32_bt_01") // Bluetooth Node
                 {
-                    this.FindControl<TextBlock>("TxtBtTemp")!.Text = temp.ToString("F1");
-                    this.FindControl<TextBlock>("TxtBtHum")!.Text = hum.ToString("F1");
-                    this.FindControl<TextBlock>("TxtBtPres")!.Text = pres.ToString("F0");
-                    this.FindControl<TextBlock>("TxtBtTime")!.Text = "Last Update: " + time;
+                    SetText("TxtBtTemp", temp.ToString("F1"));
+                    SetText("TxtBtHum", hum.ToString("F1"));
+                    SetText("TxtBtPres", pres.ToString("F0"));
+                    SetText("TxtBtTime", "Last Update: " + time);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error parsing sensor data: {ex.Message}");
             }
+        }
+
+        private void SetText(string name, string val)
+        {
+            var ctrl = this.FindControl<TextBlock>(name);
+            ctrl?.Text = val;
         }
 
         // --- 抓取 TX2 本地 Sensor 與 影像 ---
@@ -141,7 +168,40 @@ namespace SmartHomeClient
 
             try
             {
-                // 讀取光感應器
+                // 1. 取得 System Status (TX2 Temp & Fan) [新功能]
+                var sysJson = await _httpClient.GetStringAsync("/api/hw/system-status");
+                var sysOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var status = JsonSerializer.Deserialize<SystemStatus>(sysJson, sysOptions);
+
+                if (status != null)
+                {
+                    SetText("TxtCpuTemp", status.CpuTemp.ToString("F1"));
+                    SetText("TxtFanSpeed", status.FanSpeed.ToString());
+
+                    var btnAuto = this.FindControl<ToggleButton>("BtnAutoFan");
+                    var slider = this.FindControl<Slider>("SliderFan");
+
+                    if (btnAuto != null)
+                    {
+                        if (btnAuto.IsChecked != status.IsAutoFan)
+                        {
+                            btnAuto.IsChecked = status.IsAutoFan;
+                            btnAuto.Content = status.IsAutoFan ? "AUTO MODE" : "MANUAL";
+                        }
+                    }
+
+                    if (slider != null)
+                    {
+                        slider.IsEnabled = !status.IsAutoFan; // 自動模式下禁用
+                        // 僅在非使用者拖動且自動模式下更新 Slider
+                        if (status.IsAutoFan || !_isDraggingSlider)
+                        {
+                            slider.Value = status.FanSpeed;
+                        }
+                    }
+                }
+
+                // 2. 讀取光感應器
                 var sensorJson = await _httpClient.GetStringAsync("/api/hw/sensor");
                 using var doc = JsonDocument.Parse(sensorJson);
                 int lightVal = doc.RootElement.GetProperty("light").GetInt32();
@@ -152,18 +212,19 @@ namespace SmartHomeClient
                 txtLight?.Text = lightVal.ToString();
                 barLight?.Value = lightVal;
 
-                // 讀取 LED 狀態
+                // 3. 讀取 LED 狀態
                 var ledJson = await _httpClient.GetStringAsync("/api/hw/leds");
                 var ledStates = JsonSerializer.Deserialize<bool[]>(ledJson);
                 UpdateLedStatus(ledStates);
 
-                // 讀取相機影像
+                // 4. 讀取相機影像
                 var imageBytes = await _httpClient.GetByteArrayAsync("/api/camera/frame");
                 if (imageBytes != null && imageBytes.Length > 0)
                 {
                     using var ms = new MemoryStream(imageBytes);
                     var bitmap = new Bitmap(ms);
-                    this.FindControl<Image>("CamDisplay")!.Source = bitmap;
+                    var img = this.FindControl<Image>("CamDisplay");
+                    img?.Source = bitmap;
 
                     var mat = Mat.FromImageData(imageBytes, ImreadModes.Color);
                     DetectMotion(mat);
@@ -185,6 +246,39 @@ namespace SmartHomeClient
             l2?.Fill = states[1] ? Brushes.Lime : Brushes.DimGray;
             l3?.Fill = states[2] ? Brushes.Lime : Brushes.DimGray;
             l4?.Fill = states[3] ? Brushes.Lime : Brushes.DimGray;
+        }
+
+        // --- 風扇控制事件 ---
+        private async void OnAutoFanToggle(object? sender, RoutedEventArgs e)
+        {
+            if (_httpClient == null) return;
+            var btn = sender as ToggleButton;
+            bool isAuto = btn?.IsChecked ?? true;
+
+            btn?.Content = isAuto ? "AUTO MODE" : "MANUAL";
+            var slider = this.FindControl<Slider>("SliderFan");
+            slider?.IsEnabled = !isAuto;
+
+            if (isAuto)
+            {
+                await _httpClient.PostAsync("/api/hw/fan/auto", null);
+            }
+            else
+            {
+                int pwm = (int)(slider?.Value ?? 0);
+                await _httpClient.PostAsync($"/api/hw/fan/manual/{pwm}", null);
+            }
+        }
+
+        private async void OnFanSliderRelease(object? sender, PointerCaptureLostEventArgs e)
+        {
+            if (_httpClient == null) return;
+            var slider = sender as Slider;
+            if (slider != null && slider.IsEnabled)
+            {
+                int pwm = (int)slider.Value;
+                await _httpClient.PostAsync($"/api/hw/fan/manual/{pwm}", null);
+            }
         }
 
         // --- 動態偵測邏輯 ---
@@ -382,8 +476,6 @@ namespace SmartHomeClient
             {
                 try
                 {
-                    // 這裡簡化邏輯，直接發送切換請求有點困難，因為不知道當前狀態
-                    // 所以先讀取再切換
                     var ledJson = await _httpClient.GetStringAsync("/api/hw/leds");
                     var ledStates = JsonSerializer.Deserialize<bool[]>(ledJson);
                     if (ledStates != null)
@@ -435,6 +527,14 @@ namespace SmartHomeClient
             public string? Action { get; set; }
             public int[]? Targets { get; set; }
             public string? Message { get; set; }
+        }
+
+        // 新增 SystemStatus 類別
+        public class SystemStatus
+        {
+            public double CpuTemp { get; set; }
+            public int FanSpeed { get; set; }
+            public bool IsAutoFan { get; set; }
         }
     }
 }

@@ -5,7 +5,7 @@
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
         Width="1200" Height="800"
         x:Class="SmartHomeClient.MainWindow"
-        Title="SmartHome Control Center (TX2)"
+        Title="SmartHome Control Center"
         Background="#1a1a2e"
         Foreground="White"
         KeyDown="OnKeyDown"
@@ -69,6 +69,20 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
         
+        <!-- ToggleButton 樣式 (新增) -->
+        <Style Selector="ToggleButton">
+            <Setter Property="Background" Value="#333"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="ToggleButton:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="#4cc9f0"/>
+            <Setter Property="Foreground" Value="#1a1a2e"/>
+        </Style>
+        
         <!-- TabControl 樣式微調 -->
         <Style Selector="TabItem">
             <Setter Property="FontSize" Value="16"/>
@@ -118,7 +132,7 @@
                 <TabItem Header="Dashboard">
                     <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto" Margin="0,20,0,0">
                         
-                        <!-- TX2 Local Data -->
+                        <!-- TX2 Local Data (Server Room) -->
                         <Border Grid.Row="1" Grid.Column="0" Classes="card">
                             <StackPanel Spacing="10">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
@@ -136,6 +150,51 @@
                                     <ProgressBar Name="BarLight" Grid.Column="1" Minimum="0" Maximum="1023" Width="100" Height="10" 
                                                  Foreground="#4cc9f0" Background="#333" VerticalAlignment="Center"/>
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- TX2 System Health & Fan Control -->
+                        <Border Grid.Row="1" Grid.Column="1" Classes="card" BorderBrush="#a8dadc" BorderThickness="1">
+                            <StackPanel Spacing="10">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="TX2 SYSTEM HEALTH" Classes="h2"/>
+                                    <Border Background="#a8dadc" CornerRadius="4" Padding="4,2" VerticalAlignment="Center">
+                                        <TextBlock Text="KERNEL" FontSize="10" Foreground="#1a1a2e" FontWeight="Bold"/>
+                                    </Border>
+                                </StackPanel>
+                                
+                                <Grid ColumnDefinitions="*, *">
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="CPU Temp" Classes="label"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Name="TxtCpuTemp" Text="--" Classes="value" Foreground="#ff6b6b"/>
+                                            <TextBlock Text="°C" VerticalAlignment="Bottom" Margin="2,0,0,3" FontSize="10"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="Fan Speed" Classes="label"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Name="TxtFanSpeed" Text="--" Classes="value" Foreground="#a8dadc"/>
+                                            <TextBlock Text="PWM" VerticalAlignment="Bottom" Margin="2,0,0,3" FontSize="10"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- 風扇控制區 -->
+                                <Border Background="#0f3460" Padding="10" CornerRadius="5" Margin="0,5,0,0">
+                                    <StackPanel Spacing="5">
+                                        <Grid ColumnDefinitions="*, Auto">
+                                            <TextBlock Text="Fan Control" VerticalAlignment="Center" FontWeight="Bold"/>
+                                            <ToggleButton Name="BtnAutoFan" Content="AUTO MODE" IsChecked="True" Click="OnAutoFanToggle" Width="120"/>
+                                        </Grid>
+                                        
+                                        <Grid ColumnDefinitions="*, Auto" Margin="0,10,0,0">
+                                            <Slider Name="SliderFan" Minimum="0" Maximum="255" IsEnabled="False" VerticalAlignment="Center" Margin="0,0,10,0"
+                                                    PointerCaptureLost="OnFanSliderRelease"/>
+                                            <TextBlock Name="TxtTargetPwm" Text="0" Width="30" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#aaa"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -177,7 +236,7 @@
                         </Border>
 
                         <!-- BT Node Data -->
-                        <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Classes="card">
+                        <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="1" Classes="card">
                             <StackPanel Spacing="10">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <TextBlock Text="REMOTE UNIT" Classes="h2"/>

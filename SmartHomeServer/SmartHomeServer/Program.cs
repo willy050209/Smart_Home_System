@@ -154,6 +154,20 @@ app.MapPost("/api/smart/away", (CameraService cam, HardwareManager hw) => {
     }
 });
 
+app.MapGet("/api/hw/system-status", (HardwareManager hw) => {
+    return Results.Ok(hw.GetSystemStatus());
+});
+
+app.MapPost("/api/hw/fan/manual/{pwm}", (HardwareManager hw, int pwm) => {
+    hw.SetManualFan(pwm);
+    return Results.Ok(new { message = $"Manual Fan Speed set to {pwm}" });
+});
+
+app.MapPost("/api/hw/fan/auto", (HardwareManager hw) => {
+    hw.SetAutoFan();
+    return Results.Ok(new { message = "Fan set to Auto Mode" });
+});
+
 // --- 網頁路由 ---
 app.MapGet("/", () => Results.Content(GetIndexContent(), "text/html"));
 app.MapGet("/monitor", () => Results.Content(GetmMonitorContent(), "text/html"));
