@@ -131,7 +131,7 @@ pip install paho-mqtt
  
 * **部署步驟:** 
 1. 開啟 SmartHomeClient/SmartHomeClient/SmartHomeClient.csproj (或 .slnx)。
-2. ** Desktop (Windows/Mac/Linux): **
+2. **Desktop (Windows/Mac/Linux):**
  * 選擇 net8.0 作為目標框架。
  * 執行專案即可開啟視窗程式。
 3. **Android:**
