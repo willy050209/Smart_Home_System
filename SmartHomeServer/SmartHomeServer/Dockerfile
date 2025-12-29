@@ -1,43 +1,42 @@
-# 階段 1: 建置 (Build)
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# --- 第一階段：建置環境 (使用你電腦原本的架構，例如 x64，避免 QEMU 崩潰) ---
+# 注意：這裡加了 --platform=$BUILDPLATFORM
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG TARGETARCH
 WORKDIR /src
 
-# 複製專案檔並還原依賴
+# 1. 複製專案檔
 COPY ["SmartHomeServer.csproj", "./"]
-RUN dotnet restore "SmartHomeServer.csproj"
 
-# 複製其餘程式碼並發布
+# 2. 還原相依套件
+# 關鍵：加上 -r linux-arm64 明確告訴 SDK 我們要還原 ARM64 的套件
+# 關鍵：加上 --disable-parallel 減少多執行緒衝突風險
+RUN dotnet restore -r linux-arm64 "SmartHomeServer.csproj" --disable-parallel
+
+# 3. 複製剩餘程式碼並編譯
 COPY . .
-# -c Release: 使用 Release 模式
-# -r linux-arm64: 明確指定目標為 TX2 的架構 (ARM64)
-# --self-contained false: 使用共享框架以縮減體積
-RUN dotnet publish "SmartHomeServer.csproj" -c Release -r linux-arm64 --self-contained false -o /app/publish
+# 關鍵：發布時指定 -r linux-arm64
+RUN dotnet publish "SmartHomeServer.csproj" -c Release -o /app/publish -r linux-arm64 --no-self-contained
 
-# 階段 2: 執行 (Runtime)
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
+# --- 第二階段：執行環境 (這層會自動使用目標架構 ARM64) ---
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# 安裝 OpenCV 與 System.Drawing 所需的原生依賴
-# libgdiplus: 支援 System.Drawing
-# libgomp1: OpenCV 的多執行緒支援 (OpenMP)
-# libopencv-dev: 包含 OpenCV 的基礎函式庫
+# 4. 安裝硬體與視覺所需的原生函式庫 (TX2 需要這些)
 RUN apt-get update && apt-get install -y \
-    libgdiplus \
-    libgomp1 \
     libopencv-dev \
-    curl \
+    libgdiplus \
+    libc6-dev \
+    v4l-utils \
+    tzdata \
+    util-linux \
     && rm -rf /var/lib/apt/lists/*
 
-# 從建置階段複製發布的檔案
+# 5. 從建置階段複製編譯好的檔案
 COPY --from=build /app/publish .
 
-
-ENV DOTNET_RUNNING_IN_CONTAINER=true
-# 設定時區 
+# 6. 設定環境變數
+ENV ASPNETCORE_URLS=http://+:8080
 ENV TZ=Asia/Taipei
 
-# 因為我們需要存取 /dev/blackbox, /dev/video0, /dev/gpiomem, /sys/class/pwm
-# 且需要寫入權限下載模型檔案 (.prototxt)
-USER root
-
+# 7. 啟動伺服器
 ENTRYPOINT ["dotnet", "SmartHomeServer.dll"]
