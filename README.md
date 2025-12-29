@@ -17,7 +17,9 @@
 ## **硬體需求**
 
 * **Server**: NVIDIA Jetson TX2 (或相容的 Linux ARM64/x64 設備)  
-* **Client**: Windows / macOS / Linux 電腦  
+* **Client**: 
+ * Windows / macOS / Linux 電腦  
+ * Mobile: Android Phone / Tablet (Android 10.0+ 建議)
 * **Nodes**: ESP32 開發板 x2  
 * **Sensors & Actuators**:  
   * BME280 (溫濕度氣壓感測器)  
@@ -33,13 +35,13 @@
 
 在啟動伺服器之前，必須先在 Host OS (TX2) 上編譯並載入驅動程式。
 
-``` brush
+``` Bash
 cd blackbox\_driver  
 ```
-``` brush
+``` Bash
 make  
 ```
-``` brush
+``` Bash
 make load
 ```
 
@@ -52,19 +54,19 @@ make load
 伺服器負責整合所有服務。請確保您已安裝 Docker。
 
 **步驟一：建置 Docker Image**
-``` brush
+``` Bash
 cd SmartHomeServer/SmartHomeServer  
 ```
 
 注意：根據 Dockerfile，基礎映像檔為 .NET 10 
-``` brush
+``` Bash
 docker build \-t smarthome-server .
 ```
 
 **步驟二：啟動容器 (Privileged Mode)**
 
 由於需要存取 /dev/blackbox、GPIO、SPI 與 Camera，必須使用 \--privileged 模式並掛載 /dev。
-``` brush
+``` Bash
 docker run -d \
   --name my-smarthome \
   --restart always \
@@ -106,7 +108,7 @@ docker run -d \
 
 **安裝依賴**:
 
-``` brush
+``` Bash
 pip install paho-mqtt
 ```
 
@@ -115,17 +117,27 @@ pip install paho-mqtt
 1. 修改 bt\_bridge/bt\_bridge.py 中的 ESP32\_MAC (請先透過手機或電腦配對確認 ESP32 的 MAC 地址)。  
 2. 修改 MQTT\_BROKER 為伺服器 IP。  
 3. 執行腳本：  
-``` brush
+``` Bash
    python3 bt\_bridge/bt\_bridge.py
 ```
 
-### **5\. SmartHomeClient (Desktop App)**
+### **5\. SmartHomeClient (App)**
 
-桌面客戶端用於監控與控制。
+支援 Desktop 與 Android 雙平台。
 
-1. 開啟 SmartHomeClient/SmartHomeClient.slnx (使用 Visual Studio 或 Rider)。  
-2. 編譯並執行專案。  
-3. 在登入畫面輸入 Server URL (例如: http://192.168.1.104:8080 )。
+* **開發環境需求:**
+ * Visual Studio 2022 (安裝 .NET Multi-platform App UI 開發負載) 或 Rider。
+ * Android SDK (若要部署至 Android)。
+ 
+* **部署步驟:** 
+1. 開啟 SmartHomeClient/SmartHomeClient/SmartHomeClient.csproj (或 .slnx)。
+2. ** Desktop (Windows/Mac/Linux): **
+ * 選擇 net8.0 作為目標框架。
+ * 執行專案即可開啟視窗程式。
+3. **Android:**
+ * 選擇 net8.0-android 作為目標框架。
+ * 連接 Android 手機 (開啟 USB 偵錯) 或使用模擬器。
+ * 部署並執行 App。
 
 ## **功能操作說明**
 
@@ -173,4 +185,4 @@ pip install paho-mqtt
    * 若在同一區網，請使用 TX2 的區域網路 IP (如 192.168.x.x) 而非 localhost。
 
 開發者: Willy050209  
-版本: v1.0.0
+版本: v1.1.0 (Added Android Support)
