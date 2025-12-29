@@ -1,16 +1,20 @@
 ﻿namespace SmartHomeServer.Services
 {
     using OpenCvSharp;
-    using OpenCvSharp.Dnn; // 引入 DNN 命名空間
+    using OpenCvSharp.Dnn;
     using System.Runtime.InteropServices;
-    using System.Net.Http; // 用於下載檔案
+    using System.Net.Http;
+    using System;
+    using System.IO;
+    using System.Threading;
+
     public class CameraService : IDisposable
     {
         private VideoCapture? _capture;
         private Thread? _captureThread;
         private bool _isRunning = false;
-        private readonly object _lock = new();
-        private byte[] _latestFrame = Array.Empty<byte>();
+        private readonly Lock _lock = new();
+        private byte[] _latestFrame = [];
 
         // --- 模型控制變數 ---
         private Net _faceNet;
@@ -113,7 +117,6 @@
             }
 
             // --- 嘗試 2: Haar Cascade (Fallback) ---
-            // 如果 DNN 沒載入成功，或者雖然載入了但也想準備 Haar 做後備 (視需求，這裡邏輯是 DNN 失敗才啟用 Haar)
             if (!_isDnnLoaded)
             {
                 Console.WriteLine("[CameraService] Fallback: Attempting to load Haar Cascade...");
@@ -141,51 +144,102 @@
         {
             if (_isRunning) return;
 
-            // V4L2 for USB Camera, or GStreamer for CSI
-            int deviceIndex = 0;
-            _capture = new VideoCapture(deviceIndex, VideoCaptureAPIs.V4L2);
-
-            if (!_capture.IsOpened())
-            {
-                Console.WriteLine("Failed to open camera!");
-                return;
-            }
-
-            _capture.Set(VideoCaptureProperties.FrameWidth, 640);
-            _capture.Set(VideoCaptureProperties.FrameHeight, 480);
-            _capture.Set(VideoCaptureProperties.Fps, 30);
-
             _isRunning = true;
+            // 將相機初始化移至 Thread 內，避免卡住主執行緒，並支援重試邏輯
             _captureThread = new Thread(CaptureLoop) { IsBackground = true };
             _captureThread.Start();
-            Console.WriteLine("Camera Capture Started.");
+            Console.WriteLine("Camera Capture Thread Started.");
         }
 
         private void CaptureLoop()
         {
+            // --- 整合的相機初始化邏輯 (故障轉移) ---
+            int[] cameraIndexes = { 0, 1 };
+            bool cameraFound = false;
+
+            foreach (var index in cameraIndexes)
+            {
+                try
+                {
+                    Console.WriteLine($"[Camera] Attempting to open camera index {index}...");
+                    var tempCap = new VideoCapture(index);
+
+                    if (tempCap.IsOpened())
+                    {
+                        // 嘗試讀取一幀以驗證
+                        using var testFrame = new Mat();
+                        if (tempCap.Read(testFrame) && !testFrame.Empty())
+                        {
+                            _capture = tempCap;
+                            // 設定參數
+                            _capture.Set(VideoCaptureProperties.FrameWidth, 640);
+                            _capture.Set(VideoCaptureProperties.FrameHeight, 480);
+                            _capture.Set(VideoCaptureProperties.Fps, 30);
+
+                            Console.WriteLine($"[Camera] Successfully connected to camera index {index}.");
+                            cameraFound = true;
+                            break;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[Camera] Index {index} opened but read failed. Disposing...");
+                            tempCap.Dispose();
+                        }
+                    }
+                    else
+                    {
+                        tempCap.Dispose();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Camera] Error trying index {index}: {ex.Message}");
+                }
+            }
+
+            if (!cameraFound || _capture == null)
+            {
+                Console.WriteLine("[Camera] Fatal Error: No functional camera found.");
+                return;
+            }
+
+            // --- 主循環 ---
             using var frame = new Mat();
 
             while (_isRunning)
             {
-                if (_capture != null && _capture.Read(frame) && !frame.Empty())
+                try
                 {
-                    // 根據載入狀態選擇演算法
-                    if (_isDnnLoaded)
+                    if (_capture != null && _capture.IsOpened() && _capture.Read(frame) && !frame.Empty())
                     {
-                        DetectFacesDnn(frame);
-                    }
-                    else if (_isHaarLoaded)
-                    {
-                        DetectFacesHaar(frame);
-                    }
+                        // 根據載入狀態選擇演算法
+                        if (_isDnnLoaded)
+                        {
+                            DetectFacesDnn(frame);
+                        }
+                        else if (_isHaarLoaded)
+                        {
+                            DetectFacesHaar(frame);
+                        }
 
-                    // 壓縮
-                    var bytes = frame.ImEncode(".jpg", new int[] { (int)ImwriteFlags.JpegQuality, 70 });
-                    lock (_lock)
+                        // 壓縮圖片
+                        var bytes = frame.ImEncode(".jpg", new int[] { (int)ImwriteFlags.JpegQuality, 70 });
+                        lock (_lock)
+                        {
+                            _latestFrame = bytes;
+                        }
+                    }
+                    else
                     {
-                        _latestFrame = bytes;
+                        // 讀取失敗時的保護
+                        Thread.Sleep(100);
                     }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Camera] Frame Loop Error: {ex.Message}");
+                }
+
                 Thread.Sleep(30);
             }
         }
@@ -224,9 +278,7 @@
             }
             catch (Exception ex)
             {
-                // 如果 DNN 執行期間崩潰 (Runtime Error)，可以考慮在這裡切換回 Haar
                 Console.WriteLine($"DNN Runtime Error: {ex.Message}");
-                // _isDnnLoaded = false; // 選用：若要自動降級可取消註解
             }
         }
 
@@ -241,7 +293,6 @@
                 Cv2.CvtColor(frame, gray, ColorConversionCodes.BGR2GRAY);
                 Cv2.EqualizeHist(gray, gray);
 
-                // 參數: scaleFactor=1.1, minNeighbors=5
                 var faces = _cascadeClassifier.DetectMultiScale(gray, 1.1, 5, HaarDetectionTypes.ScaleImage, new OpenCvSharp.Size(30, 30));
 
                 foreach (var face in faces)
