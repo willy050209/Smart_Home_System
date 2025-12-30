@@ -159,7 +159,7 @@
             int idx = id - 1;
             if (idx >= 0 && idx < _ledPins.Length)
             {
-                SimpleSysFsGpio.Write(_ledPins[idx], on ? 1 : 0);
+                SimpleSysFsGpio.Write(_ledPins[idx], on ? 0 : 1);
                 _ledStates[idx] = on;
             }
         }
@@ -174,11 +174,11 @@
                 var sensorValue = _adc.Read(0);
                 if(sensorValue > 600 )
                 {
-                    SimpleSysFsGpio.Write(_GPIO388, 1);
+                    SimpleSysFsGpio.Write(_GPIO388, 0);
                 }
                 else
                 {
-                    SimpleSysFsGpio.Write(_GPIO388, 0);
+                    SimpleSysFsGpio.Write(_GPIO388, 1);
                 }
                 return sensorValue;
             }
