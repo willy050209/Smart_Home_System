@@ -41,11 +41,11 @@
                 {
                     SimpleSysFsGpio.Export(pin);
                     SimpleSysFsGpio.SetDirection(pin, "out");
-                    SimpleSysFsGpio.Write(pin, 0);
+                    SimpleSysFsGpio.Write(pin, 1);
                 }
                 SimpleSysFsGpio.Export(_GPIO388);
                 SimpleSysFsGpio.SetDirection(_GPIO388, "out");
-                SimpleSysFsGpio.Write(_GPIO388, 0);
+                SimpleSysFsGpio.Write(_GPIO388, 1);
 
                 try
                 {
