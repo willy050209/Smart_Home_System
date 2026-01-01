@@ -335,10 +335,12 @@
                                         <TextBlock Grid.Column="0" Text="KERNEL LOGS" Classes="h2" VerticalAlignment="Center"/>
                                         <Button Grid.Column="1" Content="⟳" Click="OnRefreshLog" Padding="10,0" Background="Transparent" Foreground="#4cc9f0" VerticalAlignment="Center"/>
                                     </Grid>
-                                    <ListBox Name="ListLogs" Height="200" Background="#0f3460" Foreground="#a0a0a0" CornerRadius="5">
+                                    <ListBox Name="ListLogs" Height="200" Background="#0f3460" Foreground="#a0a0a0" CornerRadius="5" 
+                                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding}" FontSize="11" FontFamily="Consolas"/>
+                                                <TextBlock Text="{Binding}" FontSize="11" FontFamily="Consolas" />
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
