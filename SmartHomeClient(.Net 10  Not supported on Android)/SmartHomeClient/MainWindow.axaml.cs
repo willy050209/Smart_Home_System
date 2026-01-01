@@ -394,7 +394,7 @@ namespace SmartHomeClient
                 listLogs.Items.Clear();
                 if (logs != null)
                 {
-                    foreach (var log in logs) listLogs.Items.Add(log);
+                    foreach (var log in logs) listLogs.Items.Add($"{log.Timestamp} ${log.Result}");
                 }
                 else
                 {
