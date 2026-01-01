@@ -10,9 +10,11 @@ using OpenCvSharp;
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace SmartHomeClient
 {
@@ -387,7 +389,7 @@ namespace SmartHomeClient
             try
             {
                 var json = await _httpClient.GetStringAsync("/api/driver/logs");
-                var logs = JsonSerializer.Deserialize<string[]>(json);
+                var logs = JsonSerializer.Deserialize<List<LogEntry>>(json);
 
                 listLogs.Items.Clear();
                 if (logs != null)
@@ -529,12 +531,19 @@ namespace SmartHomeClient
             public string? Message { get; set; }
         }
 
-        // 新增 SystemStatus 類別
         public class SystemStatus
         {
             public double CpuTemp { get; set; }
             public int FanSpeed { get; set; }
             public bool IsAutoFan { get; set; }
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        public struct LogEntry
+        {
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)] public string Password;
+            public int Result;
+            public long Timestamp;
         }
     }
 }
