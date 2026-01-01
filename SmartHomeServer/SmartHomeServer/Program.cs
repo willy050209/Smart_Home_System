@@ -78,7 +78,13 @@ app.MapPost("/api/driver/log", (BlackboxDriver drv, [FromBody] AuthDataRequest r
 });
 
 app.MapGet("/api/driver/logs", (BlackboxDriver drv) => {
-    return Results.Ok(drv.ReadLogs());
+    var logs = drv.ReadLogs().Select(e => new
+    {
+        e.Password,
+        e.Result,
+        e.Timestamp
+    });
+    return Results.Ok(logs);
 });
 
 app.MapGet("/api/driver/dmesg", () => {
