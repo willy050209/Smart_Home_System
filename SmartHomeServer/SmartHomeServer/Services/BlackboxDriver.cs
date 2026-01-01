@@ -1,6 +1,7 @@
 ﻿namespace SmartHomeServer.Services
 {
     using System.Runtime.InteropServices;
+    using SmartHomeServer.Models;
     public class BlackboxDriver
     {
         private readonly List<string> _logs = [];
@@ -16,20 +17,6 @@
 
         private const int IOCTL_WRITE_LOG = 0x40186b01; // 請確認此數值正確
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        public struct AuthData
-        {
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)] public string Password;
-            public int Result;
-        }
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        public struct LogEntry
-        {
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)] public string Password;
-            public int Result;
-            public long Timestamp;
-        }
 
         public void OpenDriver()
         {
@@ -50,50 +37,50 @@
             ioctl(_fd, IOCTL_WRITE_LOG, ref data);
         }
 
-        public List<String> ReadLogs()
+        public List<LogEntry> ReadLogs()
         {
-            return _logs;
-            //var logs = new List<LogEntry>();
+            //return _logs;
+            var logs = new List<LogEntry>();
 
-            //// 每次讀取都重新開啟檔案，確保 offset 從 0 開始
-            //// 0 = O_RDONLY
-            //int readFd = -1;
-            //if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            //{
-            //    readFd = open(DriverPath, 0);
-            //}
+            // 每次讀取都重新開啟檔案，確保 offset 從 0 開始
+            // 0 = O_RDONLY
+            int readFd = -1;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                readFd = open(DriverPath, 0);
+            }
 
-            //if (readFd < 0) return logs; // 無法開啟
+            if (readFd < 0) return logs; // 無法開啟
 
-            //int size = Marshal.SizeOf<LogEntry>();
-            //// 預配足夠的緩衝區 (100 筆資料)
-            //int bufferSize = size * 100;
-            //IntPtr ptr = Marshal.AllocHGlobal(bufferSize);
+            int size = Marshal.SizeOf<LogEntry>();
+            // 預配足夠的緩衝區 (100 筆資料)
+            int bufferSize = size * 100;
+            IntPtr ptr = Marshal.AllocHGlobal(bufferSize);
 
-            //try
-            //{
-            //    Console.WriteLine("[Info] Blackbox driver read (new fd).");
-            //    int bytes = read(readFd, ptr, bufferSize);
+            try
+            {
+                Console.WriteLine("[Info] Blackbox driver read (new fd).");
+                int bytes = read(readFd, ptr, bufferSize);
 
-            //    if (bytes > 0)
-            //    {
-            //        int count = bytes / size;
-            //        for (int i = 0; i < count; i++)
-            //        {
-            //            var entry = Marshal.PtrToStructure<LogEntry>(IntPtr.Add(ptr, i * size));
-            //            // 過濾掉時間戳記為 0 的無效資料
-            //            if (entry.Timestamp != 0) logs.Add(entry);
-            //        }
-            //    }
-            //}
-            //finally
-            //{
-            //    Marshal.FreeHGlobal(ptr);
-            //    close(readFd);
-            //}
+                if (bytes > 0)
+                {
+                    int count = bytes / size;
+                    for (int i = 0; i < count; i++)
+                    {
+                        var entry = Marshal.PtrToStructure<LogEntry>(IntPtr.Add(ptr, i * size));
+                        // 過濾掉時間戳記為 0 的無效資料
+                        if (entry.Timestamp != 0) logs.Add(entry);
+                    }
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+                close(readFd);
+            }
 
-            //logs.Reverse(); // 讓最新的顯示在最上面
-            //return logs;
+            logs.Reverse(); // 讓最新的顯示在最上面
+            return logs;
         }
     }
 }
