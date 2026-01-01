@@ -10,6 +10,7 @@ using Avalonia.Threading;
 using Microsoft.AspNetCore.SignalR.Client;
 using OpenCvSharp;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -373,12 +374,21 @@ namespace SmartHomeClient.Views
             try
             {
                 var json = await _httpClient.GetStringAsync("/api/driver/logs");
-                var logs = JsonSerializer.Deserialize<string[]>(json);
+
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+                var logs = JsonSerializer.Deserialize<List<LogEntry>>(json, options);
 
                 listLogs.Items.Clear();
                 if (logs != null)
                 {
-                    foreach (var log in logs) listLogs.Items.Add(log);
+                    foreach (var log in logs)
+                    {
+                        var time = DateTimeOffset.FromUnixTimeSeconds(log.Timestamp).LocalDateTime.ToString("HH:mm:ss");
+                        var status = log.Result == 1 ? "Success" : "Failed";
+
+                        listLogs.Items.Add($"[{time}] Login {status} ");
+                    }
                 }
                 else
                 {
@@ -571,6 +581,13 @@ namespace SmartHomeClient.Views
             public double CpuTemp { get; set; }
             public int FanSpeed { get; set; }
             public bool IsAutoFan { get; set; }
+        }
+
+        public class LogEntry
+        {
+            public string Password { get; set; } = string.Empty;
+            public int Result { get; set; }
+            public long Timestamp { get; set; }
         }
     }
 }

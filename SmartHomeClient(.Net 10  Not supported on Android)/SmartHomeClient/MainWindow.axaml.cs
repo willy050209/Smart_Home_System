@@ -389,12 +389,21 @@ namespace SmartHomeClient
             try
             {
                 var json = await _httpClient.GetStringAsync("/api/driver/logs");
-                var logs = JsonSerializer.Deserialize<List<LogEntry>>(json);
+
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+                var logs = JsonSerializer.Deserialize<List<LogEntry>>(json, options);
 
                 listLogs.Items.Clear();
                 if (logs != null)
                 {
-                    foreach (var log in logs) listLogs.Items.Add($"{log.Timestamp} ${log.Result}");
+                    foreach (var log in logs)
+                    {
+                        var time = DateTimeOffset.FromUnixTimeSeconds(log.Timestamp).LocalDateTime.ToString("HH:mm:ss");
+                        var status = log.Result == 1 ? "Success" : "Failed";
+
+                        listLogs.Items.Add($"[{time}] Login {status} ");
+                    }
                 }
                 else
                 {
@@ -538,12 +547,11 @@ namespace SmartHomeClient
             public bool IsAutoFan { get; set; }
         }
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-        public struct LogEntry
+        public class LogEntry
         {
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 20)] public string Password;
-            public int Result;
-            public long Timestamp;
+            public string Password { get; set; } = string.Empty;
+            public int Result { get; set; } 
+            public long Timestamp { get; set; }
         }
     }
 }
