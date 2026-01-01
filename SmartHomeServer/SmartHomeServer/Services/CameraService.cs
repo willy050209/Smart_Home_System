@@ -86,19 +86,18 @@
             // 定義硬體加速的嘗試清單 (優先順序由上而下)
             var configs = new[]
             {
-                // 1. Intel OpenVINO (NPU / CPU 優化)
-                // 適用於 Intel CPU 或 Core Ultra NPU (需 OpenVINO Runtime 支援)
-                (Backend.INFERENCE_ENGINE, Target.MYRIAD, "Intel OpenVINO (NPU/CPU)"),
                 
-                // 2. NVIDIA GPU (CUDA)
-                // 需要支援 CUDA 的 OpenCV 版本與 NVIDIA 驅動
+                
+                // NVIDIA GPU (CUDA)
                 (Backend.CUDA, Target.CUDA, "NVIDIA GPU (CUDA)"),
                 
-                // 3. OpenCL (通用 GPU)
-                // 適用於大多數 Intel/AMD 內顯與獨顯
+                // Intel OpenVINO (NPU / CPU 優化)
+                (Backend.INFERENCE_ENGINE, Target.MYRIAD, "Intel OpenVINO (NPU/CPU)"),
+                
+                // OpenCL (通用 GPU)
                 (Backend.OPENCV, Target.OPENCL, "OpenCL (General GPU)"),
                 
-                // 4. CPU (保證可用)
+                // CPU (保證可用)
                 (Backend.OPENCV, Target.CPU, "CPU (Fallback)")
             };
 
