@@ -80,6 +80,33 @@ docker run -d \
 * **Swagger 文件**: http://\<TX2\_IP\>:8080/swagger  
 * **Web 監控頁面**: http://\<TX2\_IP\>:8080/monitor
 
+**Windows 部署方法:**
+
+1. 安裝 Docker Desktop for Windows。
+2. 確保已啟動 Docker Desktop。
+3. 打開 PowerShell 或 CMD。
+4. 啟用 buildx 支援
+	```Bash
+	docker buildx create --use
+	```
+5. 執行跨平台編譯
+	```Bash
+	docker buildx build --platform linux/arm64 -t smarthome-server:latest --load .
+	```
+6. 匯出映像檔
+	```Bash
+	docker save -o smarthome-server.tar smarthome-server:latest
+	```
+7. 傳輸
+	```Bash
+	scp smarthome-server.tar <username>@<TX2_IP>:路徑
+	```
+8. 載入 (在 TX2 上執行)
+	```Bash
+	docker load -i smarthome-server.tar
+	```
+	
+
 ### **3\. ESP32 Nodes (Arduino)**
 
 請使用 Arduino IDE 燒錄以下韌體。
