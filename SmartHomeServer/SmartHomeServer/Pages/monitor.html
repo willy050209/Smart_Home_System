@@ -249,6 +249,10 @@
                 <div class="data-label">Temp</div>
                 <div><span class="data-value val-temp" id="bt-temp">--</span><span class="unit">°C</span></div>
             </div>
+            <div class="data-row">
+                <div class="data-label">Humidity</div>
+                <div><span class="data-value val-hum" id="bt-hum">--</span><span class="unit">%</span></div>
+            </div>
             <div class="updated-time">Last: <span id="bt-time">Never</span></div>
         </div>
 
@@ -273,6 +277,7 @@
                 }
                 else if (data.sensorId === "esp32_bt_01") {
                     document.getElementById("bt-temp").innerText = data.temp.toFixed(1);
+                    document.getElementById("bt-hum").innerText = data.hum.toFixed(1);
                     document.getElementById("bt-time").innerText = now;
                     pulseCard("status-bt");
                 }
