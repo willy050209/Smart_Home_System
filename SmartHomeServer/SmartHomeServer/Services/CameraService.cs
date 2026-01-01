@@ -17,7 +17,7 @@
         private byte[] _latestFrame = [];
 
         // --- 模型控制變數 ---
-        private Net _faceNet;
+        private Net? _faceNet;
         private CascadeClassifier? _cascadeClassifier;
 
         // 狀態旗標
@@ -43,7 +43,7 @@
             LoadDetectionModels();
         }
 
-        private void EnsureModelFilesExist()
+        private static void EnsureModelFilesExist()
         {
             try
             {
@@ -75,32 +75,82 @@
             }
         }
 
+        /// <summary>
+        /// 設定 DNN 推論的後端與硬體目標
+        /// 優先順序: NPU (OpenVINO) -> NVIDIA GPU (CUDA) -> OpenCL -> CPU
+        /// </summary>
+        private static void ConfigureBackend(Net net)
+        {
+            Console.WriteLine("[Init] 正在測試並選擇最佳硬體加速模式...");
+
+            // 定義硬體加速的嘗試清單 (優先順序由上而下)
+            var configs = new[]
+            {
+                // 1. Intel OpenVINO (NPU / CPU 優化)
+                // 適用於 Intel CPU 或 Core Ultra NPU (需 OpenVINO Runtime 支援)
+                (Backend.INFERENCE_ENGINE, Target.MYRIAD, "Intel OpenVINO (NPU/CPU)"),
+                
+                // 2. NVIDIA GPU (CUDA)
+                // 需要支援 CUDA 的 OpenCV 版本與 NVIDIA 驅動
+                (Backend.CUDA, Target.CUDA, "NVIDIA GPU (CUDA)"),
+                
+                // 3. OpenCL (通用 GPU)
+                // 適用於大多數 Intel/AMD 內顯與獨顯
+                (Backend.OPENCV, Target.OPENCL, "OpenCL (General GPU)"),
+                
+                // 4. CPU (保證可用)
+                (Backend.OPENCV, Target.CPU, "CPU (Fallback)")
+            };
+
+            foreach (var (backend, target, name) in configs)
+            {
+                try
+                {
+                    Console.Write($"[Init] 測試: {name} ... ");
+
+                    net.SetPreferableBackend(backend);
+                    net.SetPreferableTarget(target);
+
+                    // 進行一次 Dummy Forward Pass 來驗證該設定是否真正可用
+                    // 建立 1x3x300x300 的假資料 (符合模型輸入規格)
+                    using var dummyBlob = CvDnn.BlobFromImage(
+                        new Mat(300, 300, MatType.CV_8UC3, new Scalar(0, 0, 0)),
+                        1.0, new OpenCvSharp.Size(300, 300), new Scalar(0, 0, 0), false, false);
+
+                    net.SetInput(dummyBlob);
+                    using var dummyOut = net.Forward(); // 若硬體不支援或缺驅動/DLL，此處會拋出例外
+
+                    Console.WriteLine("成功!");
+                    Console.WriteLine($"[System] 已啟用硬體加速模式: {name}");
+                    return; // 成功後直接返回，保持目前的設定
+                }
+                catch (Exception)
+                {
+                    // 這裡不印出詳細錯誤以免洗版，只顯示失敗
+                    Console.WriteLine("失敗 (跳過)");
+                    // 失敗則繼續迴圈嘗試下一個
+                }
+            }
+
+            Console.WriteLine("[Error] 嚴重錯誤: 所有運算後端皆無法初始化。");
+        }
+
         private void LoadDetectionModels()
         {
-            // 策略：優先嘗試載入 DNN (為了 GPU 加速)，若失敗則載入 Haar
+            // 優先嘗試載入 DNN (為了 GPU 加速)，若失敗則載入 Haar
             _isDnnLoaded = false;
             _isHaarLoaded = false;
 
-            // --- 嘗試 1: DNN ---
+            // --- 嘗試 DNN ---
             try
             {
                 if (File.Exists(ProtoTxt) && File.Exists(CaffeModel))
                 {
                     Console.WriteLine("[CameraService] Attempting to load DNN Model...");
-                    _faceNet = CvDnn.ReadNetFromCaffe(ProtoTxt, CaffeModel);
+                    _faceNet = CvDnn.ReadNetFromCaffe(ProtoTxt, CaffeModel) ?? throw new Exception("DNN initialization returned null.");
 
-                    try
-                    {
-                        _faceNet.SetPreferableBackend(Backend.CUDA);
-                        _faceNet.SetPreferableTarget(Target.CUDA);
-                        Console.WriteLine("[CameraService] DNN Backend set to CUDA (GPU Mode).");
-                    }
-                    catch
-                    {
-                        Console.WriteLine("[CameraService] CUDA not available, falling back to CPU for DNN.");
-                        _faceNet.SetPreferableBackend(Backend.OPENCV);
-                        _faceNet.SetPreferableTarget(Target.CPU);
-                    }
+                    // 使用新的自動硬體加速配置邏輯
+                    ConfigureBackend(_faceNet);
 
                     _isDnnLoaded = true;
                     Console.WriteLine("[CameraService] DNN Model loaded successfully.");
@@ -116,7 +166,7 @@
                 _isDnnLoaded = false;
             }
 
-            // --- 嘗試 2: Haar Cascade (Fallback) ---
+            // --- 嘗試 Haar Cascade (Fallback) ---
             if (!_isDnnLoaded)
             {
                 Console.WriteLine("[CameraService] Fallback: Attempting to load Haar Cascade...");
@@ -244,9 +294,11 @@
             }
         }
 
-        // --- 方法 A: DNN 偵測 (GPU) ---
+        // --- DNN 偵測 (GPU) ---
         private void DetectFacesDnn(Mat frame)
         {
+            if (_faceNet == null) return;
+
             try
             {
                 int h = frame.Rows;
@@ -282,7 +334,7 @@
             }
         }
 
-        // --- 方法 B: Haar Cascade 偵測 (CPU Fallback) ---
+        // --- Haar Cascade 偵測 (CPU Fallback) ---
         private void DetectFacesHaar(Mat frame)
         {
             if (_cascadeClassifier == null) return;
