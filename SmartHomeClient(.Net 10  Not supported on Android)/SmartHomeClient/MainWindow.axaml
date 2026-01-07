@@ -277,7 +277,6 @@
                 <!-- 影像與安全 (Security) -->
                 <TabItem Header="Security">
                     <Grid ColumnDefinitions="2*, 1*" Margin="0,20,0,0">
-                        <!-- 左側：影像串流 -->
                         <StackPanel Grid.Column="0" Spacing="10" Margin="0,0,20,0">
                             <Border BorderBrush="#4cc9f0" BorderThickness="1" CornerRadius="5" ClipToBounds="True" Background="Black" Height="400">
                                 <Panel>
@@ -305,11 +304,18 @@
                                 </Panel>
                             </Border>
                             <TextBlock Text="Source: CSI / USB Camera" FontSize="10" Foreground="#666" HorizontalAlignment="Right"/>
+
+                            <Border Classes="card">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="SMART ENERGY" Classes="h2"/>
+                                    <TextBlock Text="Automatically turn off lights if no person is detected." Classes="label" TextWrapping="Wrap"/>
+                                    <Button Name="BtnSmartAway" Content="RUN SMART CHECK" Classes="primary" Background="#e94560" Click="OnSmartAwayClick"/>
+                                    <TextBlock Name="TxtSmartStatus" Text="Ready" HorizontalAlignment="Center" Foreground="#a0a0a0"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
 
-                        <!-- 右側：登入與日誌 -->
                         <StackPanel Grid.Column="1" Spacing="15">
-                            <!-- 授權區塊 -->
                             <Border Classes="card">
                                 <StackPanel Spacing="10">
                                     <TextBlock Text="ACCESS CONTROL" Classes="h2"/>
@@ -319,7 +325,7 @@
                                         <TextBlock Name="TxtRemoteStatus" Grid.Column="1" Text="UNAUTHORIZED" 
                                                    Foreground="#e94560" FontWeight="Bold" HorizontalAlignment="Right"/>
                                     </Grid>
-                                    
+                                
                                     <TextBox Name="BoxPassword" Watermark="Driver Password" PasswordChar="•" 
                                              Background="#0f3460" Foreground="White" BorderBrush="#333"/>
                                     
@@ -328,13 +334,13 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- 日誌區塊 -->
                             <Border Classes="card" VerticalAlignment="Stretch">
                                 <StackPanel Spacing="5">
                                     <Grid ColumnDefinitions="*, Auto">
                                         <TextBlock Grid.Column="0" Text="KERNEL LOGS" Classes="h2" VerticalAlignment="Center"/>
                                         <Button Grid.Column="1" Content="⟳" Click="OnRefreshLog" Padding="10,0" Background="Transparent" Foreground="#4cc9f0" VerticalAlignment="Center"/>
                                     </Grid>
+                                    
                                     <ListBox Name="ListLogs" Height="200" Background="#0f3460" Foreground="#a0a0a0" CornerRadius="5" 
                                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                              ScrollViewer.VerticalScrollBarVisibility="Auto">
@@ -373,15 +379,7 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Smart Away -->
-                            <Border Classes="card">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Text="SMART ENERGY" Classes="h2"/>
-                                    <TextBlock Text="Automatically turn off lights if no person is detected." Classes="label" TextWrapping="Wrap"/>
-                                    <Button Name="BtnSmartAway" Content="RUN SMART CHECK" Classes="primary" Background="#e94560" Click="OnSmartAwayClick"/>
-                                    <TextBlock Name="TxtSmartStatus" Text="Ready" HorizontalAlignment="Center" Foreground="#a0a0a0"/>
-                                </StackPanel>
-                            </Border>
+
                         </StackPanel>
 
                         <!-- 右側：LED 控制 -->
